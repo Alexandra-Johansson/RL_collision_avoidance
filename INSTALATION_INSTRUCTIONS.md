@@ -15,9 +15,16 @@ Then apply changes using:
 source ~/.bashrc
 ```
 4. Source custom WS: source ~/your_ros2_ws/install/setup.bash
-5. Test by running Rviz with: rviz2
+5. Test by running Rviz with: 
+```
+rviz2
+```
 6. Install rqt using:
 ```
 sudo apt update
 sudo apt install '~nros-humble-rqt*'
+```
+7. Run rqt using:
+```
+rqt
 ```
