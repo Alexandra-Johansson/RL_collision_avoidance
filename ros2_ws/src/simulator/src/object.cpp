@@ -71,14 +71,10 @@ class ObjectSimNode : public rclcpp::Node
     }
 
     void getRandomPosition(float min, float max){
-      x = getRandomFloat(min, max);
-      if (getRandomFloat(-1,1) < 0){
-        x = -x;
-      }
-      y = getRandomFloat(min, max);
-      if (getRandomFloat(-1,1) < 0){
-        y = -y;
-      }
+      float angle = getRandomFloat(0,2*3.14);
+      float distance = getRandomFloat(min, max);
+      x = distance*cos(angle);
+      y = distance*sin(angle);
       z = 1.2;
     }
 
