@@ -12,6 +12,11 @@ colcon build
 source install/local_setup.bash
 ```
 
+## Only build specific package
+```
+colcon build --packages-select my_package
+```
+
 ## Run a node by using:
 ```
 ros2 run my_package my_node
