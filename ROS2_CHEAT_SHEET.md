@@ -7,6 +7,7 @@ ros2 pkg create --build-type ament_python --license Apache-2.0 --node-name my_no
 
 ## Build and source packages using from ros2_ws folder:
 ```
+rm -rf build/ install/ log/
 colcon build
 source install/local_setup.bash
 ```
