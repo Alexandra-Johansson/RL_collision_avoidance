@@ -19,12 +19,14 @@ source ~/.bashrc
 ```
 rviz2
 ```
-6. Install rqt using:
+6. Install and launch rqt using:
 ```
 sudo apt update
 sudo apt install '~nros-humble-rqt*'
-```
-7. Run rqt using:
-```
 rqt
+```
+7. Install and launch Gazebo for humble:
+```
+sudo apt-get install ros-${ROS_DISTRO}-ros-gz
+ros2 launch ros_gz_sim gz_sim.launch.py gz_args:=empty.sdf
 ```
