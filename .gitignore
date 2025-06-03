@@ -4,3 +4,5 @@
 /ros2_ws/src/build/
 /ros2_ws/src/install/
 /ros2_ws/src/log/
+
+/RL_collision_avoidance_env/
