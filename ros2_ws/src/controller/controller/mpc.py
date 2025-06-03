@@ -1,8 +1,5 @@
 import casadi as ca
 import numpy as np
-import matplotlib.pyplot as plt
-import os
-from scipy.special import i0
 
 import rclpy
 from rclpy.node import Node
@@ -10,10 +7,10 @@ from rclpy.node import Node
 from std_msgs.msg import String
 
 
-class MinimalPublisher(Node):
+class MPCNode(Node):
 
     def __init__(self):
-        super().__init__('minimal_publisher')
+        super().__init__('mpc_node')
         self.publisher_ = self.create_publisher(String, 'topic', 10)
         timer_period = 1000  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
@@ -31,7 +28,7 @@ class MinimalPublisher(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    minimal_publisher = MinimalPublisher()
+    minimal_publisher = MPCNode()
 
     rclpy.spin(minimal_publisher)
 

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(simulator)
+project(simulator_old)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -12,14 +12,10 @@ find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 
-add_executable(ekf src/ekf.cpp)
-ament_target_dependencies(ekf rclcpp std_msgs nav_msgs geometry_msgs)
-
 add_executable(object_sim src/object.cpp)
 ament_target_dependencies(object_sim rclcpp geometry_msgs visualization_msgs)
 
 install(TARGETS
-  ekf
   object_sim
   DESTINATION lib/${PROJECT_NAME}
 )
