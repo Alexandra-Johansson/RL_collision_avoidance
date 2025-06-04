@@ -10,3 +10,5 @@ gym-pybullet-drones/gym_pybullet_drones/__pycache__/
 gym-pybullet-drones/gym_pybullet_drones/control/__pycache__/
 gym-pybullet-drones/gym_pybullet_drones/envs/__pycache__/
 gym-pybullet-drones/gym_pybullet_drones/utils/__pycache__/
+
+/Training/code/__pycache__/
