@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import math
 
 import pybullet as p
 from gymnasium import spaces
@@ -22,14 +23,22 @@ class RLEnv(BaseRLAviary):
                  act = ActionType.PID,
                  parameters = None):
 
-        self.drone_model = parameters['drone_model']
-        self.initial_xyzs = parameters['initial_xyzs']
+        self.DRONE_MODEL = parameters['drone_model']
+        self.INITIAL_XYZS = parameters['initial_xyzs']
         self.CTRL_FREQ = parameters['ctrl_freq']
 
-        super().__init__(self.drone_model,
+        self.FORCE_MAG_MIN_XY = 75
+        self.FORCE_MAG_MAX_XY = 100
+        self.FORCE_MAG_MIN_Z = 50
+        self.FORCE_MAG_MAX_Z = 100
+        self.FORCE_VAR = 5
+
+        self.ball_list = []
+
+        super().__init__(self.DRONE_MODEL,
                          num_drones,
                          neighborhood_radius,
-                         self.initial_xyzs,
+                         self.INITIAL_XYZS,
                          initial_rpys,
                          physics,
                          pyb_freq,
@@ -59,22 +68,43 @@ class RLEnv(BaseRLAviary):
 
         return info
 
-    def _addObstacles(self):
+    def addBall(self,position=[0.0,0.0,0.0],force=[0.0,0.0,0.0]):
+        # position: where the ball will be added
+        # force: the force applied to the ball at the moment of creation
 
         search_path = "/home/alex/Desktop/Exjobb/RL_collision_avoidance/Training/resources"
         p.setAdditionalSearchPath(search_path)
         
-        self.BALL = p.loadURDF("custom_sphere_small.urdf",
-                       basePosition=(.0, .0, 1.0))
+        self.ball_list.append(p.loadURDF("custom_sphere_small.urdf",
+                       basePosition=(position[0], position[1], position[2])))
         
-        force = [25, 0, 100]  # Adjust magnitude and direction as needed
         position = [0, 0, 0]  # Relative position (center of mass)
         p.applyExternalForce(
-            objectUniqueId=self.BALL,
+            objectUniqueId=self.ball_list[-1],  # Get the last added ball
             linkIndex=-1,  # -1 means base/root link
             forceObj=force,
             posObj=position,
             flags=p.WORLD_FRAME
-        )   
+        )
+    
+    def addBallRandom(self):
+        # Randomly generate position and force for the ball
+        angle = np.random.uniform(-math.pi, math.pi)
+        magnitude = np.random.uniform(2, 3)
+        x_ball = magnitude * math.cos(angle)
+        y_ball = magnitude * math.sin(angle)
+        z_ball = np.random.uniform(0.75, 1.25)  # Random height
+
+        # Calculate force based on the position
+        norm = np.linalg.norm([x_ball, y_ball])
+        force_x = -np.random.uniform(self.FORCE_MAG_MIN_XY,self.FORCE_MAG_MAX_XY) * x_ball/norm +  \
+                                                            np.random.uniform(-self.FORCE_VAR,self.FORCE_VAR)
+        force_y = -np.random.uniform(self.FORCE_MAG_MIN_XY,self.FORCE_MAG_MAX_XY) * y_ball/norm + \
+                                                            np.random.uniform(-self.FORCE_VAR,self.FORCE_VAR)
+        force_z = np.random.uniform(self.FORCE_MAG_MIN_Z,self.FORCE_MAG_MAX_Z) + \
+                                                            np.random.uniform(-self.FORCE_VAR,self.FORCE_VAR)
+
+        # Add the ball with the generated position and force
+        self.addBall(position=[x_ball, y_ball, z_ball], force=[force_x, force_y, force_z])
 
         pass
