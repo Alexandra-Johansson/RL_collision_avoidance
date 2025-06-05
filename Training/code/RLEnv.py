@@ -26,6 +26,7 @@ class RLEnv(BaseRLAviary):
         self.DRONE_MODEL = parameters['drone_model']
         self.INITIAL_XYZS = parameters['initial_xyzs']
         self.CTRL_FREQ = parameters['ctrl_freq']
+        self.TARGET_POS = parameters['target_pos']
 
         self.ORIGINAL_XYZS = np.copy(self.INITIAL_XYZS)
 
@@ -50,7 +51,14 @@ class RLEnv(BaseRLAviary):
                          obs,
                          act)
 
-        self.drone_state_vec = self._getDroneStateVector(0)
+        self.EPISODE_LEN_SEC = parameters['episode_length']
+
+        drone_id = 0
+        drone_state_vec = self._getDroneStateVector(drone_id)
+
+        self.reward_state = drone_state_vec[0:3]  # Position
+        self.target_distance = np.linalg.norm(self.TARGET_POS[0] - self.reward_state)
+        self.ang_vel = drone_state_vec[13:16]  # Angular velocity
 
     def step(self, action):
         obs, reward, terminated, truncated, info = super().step(action)
@@ -63,6 +71,19 @@ class RLEnv(BaseRLAviary):
             
         return obs, reward, terminated, truncated, info
 
+    def reset(self, seed = None, options = None):
+        drone_id = 0
+        self.ctrl[drone_id].reset()
+
+        obs, info = super().reset(seed, options)
+
+        drone_state_vec = self._getDroneStateVector(drone_id)
+        self.reward_state = drone_state_vec[0:3]  # Position
+        self.target_distance = np.linalg.norm(self.TARGET_POS[0] - drone_state_vec[0:3])
+        self.ang_vel = drone_state_vec[13:16] # Angular velocity
+
+        return obs, info
+
     def _computeReward(self):
         ret = 0
 
@@ -71,10 +92,45 @@ class RLEnv(BaseRLAviary):
     def _computeTerminated(self):
         Terminated = False
 
+        drone_id = 0
+        drone_state_vec = self._getDroneStateVector(drone_id)
+        
+        # If the drone has avoided all obstacles, terminate the episode
+        i = 0
+        for ball in self.ball_list:
+            i += 1
+            vel, ang_v = p.getBaseVelocity(ball, physicsClientId = self.CLIENT)
+            pos, quat = p.getBasePositionAndOrientation(ball, physicsClientId = self.CLIENT)
+            if (vel[2] > 1e-4) or (pos[2] > 1e-1):
+                # If a ball is in the air don't terminate
+                return Terminated
+        
+        # If no ball is in the air terminate
+        Terminated = True
         return Terminated
+
 
     def _computeTruncated(self):
         Truncated = False
+
+        drone_id = 0
+        drone_state_vec = self._getDroneStateVector(drone_id)
+
+        if (self.step_counter/self.PYB_FREQ > self.EPISODE_LEN_SEC):
+            Truncated = True
+            print("Time limit reached, episode truncated.")
+        
+        elif (abs(drone_state_vec[0]) > 5 or
+            abs(drone_state_vec[1]) > 5 or
+            abs(drone_state_vec[2]) > 5):
+            Truncated = True
+            print("Drone out of bounds, episode truncated.")
+
+        elif (abs(drone_state_vec[7]) > .9 or
+                abs(drone_state_vec[8]) > .9 or
+                abs(drone_state_vec[9]) > .9):
+            Truncated = True
+            print("Drone orientation out of bounds, episode truncated.")
 
         return Truncated
 
