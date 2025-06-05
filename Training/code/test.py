@@ -22,8 +22,8 @@ for i in range (10000):
         action[0,0] = x
         action[0,1] = y
         
-        if (i%10 == 0):
-            print("Adding a new ball")
+        if (i%100 == 0):
+            # Add a ball at a random position
             env.addBallRandom()
         
 

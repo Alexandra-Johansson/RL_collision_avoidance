@@ -68,6 +68,11 @@ class RLEnv(BaseRLAviary):
 
         return info
 
+    def _addObstacles(self):
+        # Add initial obstacles or environment features here if needed
+        
+        pass
+
     def addBall(self,position=[0.0,0.0,0.0],force=[0.0,0.0,0.0]):
         # position: where the ball will be added
         # force: the force applied to the ball at the moment of creation
@@ -89,11 +94,13 @@ class RLEnv(BaseRLAviary):
     
     def addBallRandom(self):
         # Randomly generate position and force for the ball
+
+        # Generate a random position for the ball
         angle = np.random.uniform(-math.pi, math.pi)
         magnitude = np.random.uniform(2, 3)
         x_ball = magnitude * math.cos(angle)
         y_ball = magnitude * math.sin(angle)
-        z_ball = np.random.uniform(0.75, 1.25)  # Random height
+        z_ball = np.random.uniform(0.75, 1.25)
 
         # Calculate force based on the position
         norm = np.linalg.norm([x_ball, y_ball])
