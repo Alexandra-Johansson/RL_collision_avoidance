@@ -24,10 +24,13 @@ class RLEnv(BaseRLAviary):
                  parameters = None):
 
         self.DRONE_MODEL = parameters['drone_model']
+        self.NUM_OBJECTS = parameters['num_objects']
         self.INITIAL_XYZS = parameters['initial_xyzs']
         self.CTRL_FREQ = parameters['ctrl_freq']
         self.TARGET_POS = parameters['target_pos']
         self.ACT4 = parameters['act4']
+        self.OBS_NOISE = parameters['obs_noise']
+        self.OBS_NOISE_STD = parameters['obs_noise_std']
 
         self.ORIGINAL_XYZS = np.copy(self.INITIAL_XYZS)
 
@@ -159,10 +162,38 @@ class RLEnv(BaseRLAviary):
 
             return spaces.Dict({
                 "Drone_position": spaces.Box(low=obs_drone_lower_bound, high=obs_drone_upper_bound, dtype=np.float32),
-                "Object_position_k": spaces.Box(low=obs_obj_lower_bound, high=obs_obj_upper_bound, dtype=np.float32),
-                "Object_position_k_-1": spaces.Box(low=obs_obj_lower_bound, high=obs_obj_upper_bound, dtype=np.float32)})
+                "Object_position": spaces.Box(low=obs_obj_lower_bound, high=obs_obj_upper_bound, dtype=np.float32)})
         else:
             super()._obesvationSpace()
+
+    def _computeObs(self):
+        if self.OBS_TYPE == ObservationType.KIN and self.ACT_TYPE == ActionType.PID:
+            if self.OBS_NOISE:
+                #noise_drone = np.random.normal(0, self.OBS_NOISE_STD, (self.NUM_DRONES, 3))
+                noise_obj = np.random.normal(0, self.OBS_NOISE_STD, (self.NUM_OBJECTS, 3))
+            else:
+                #noise_drone = np.zeros((self.NUM_DRONES, 3))
+                noise_obj = np.zeros((self.NUM_OBJECTS, 3))
+
+            
+            drone_pos = np.zeros((self.NUM_DRONES, 3))
+            for i in range(self.NUM_DRONES):
+                obs = self._getDroneStateVector(i)
+                drone_pos[i,:] = obs[0:3]# + noise_drone[drone,:]
+
+            obj_pos = np.zeros((self.NUM_OBJECTS,3))
+            for i in range(self.NUM_OBJECTS):
+                obs, _ = p.getBasePositionAndOrientation(self.ball_list[i], physicsClientId=self.CLIENT)
+                obj_pos[i,:] = obs[0:3] + noise_obj[i,:]
+
+            return {
+                "Drone_position": drone_pos,
+                "Object_position": obj_pos
+            }
+
+
+        else:
+            return super()._computeObs()
 
     def _computeInfo(self):
         return {"info": 0}
