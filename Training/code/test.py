@@ -19,11 +19,13 @@ action = np.array([[0.0, 0.0, 1.0]])
 for i in range (10000):
         x = math.cos(4*2*math.pi*i/10000)
         y = math.sin(4*2*math.pi*i/10000)
-        print('x:', x)
-        print('y:', y)
         action[0,0] = x
         action[0,1] = y
-        print("Action:", action)
+        
+        if (i%10 == 0):
+            print("Adding a new ball")
+            env.addBallRandom()
+        
 
         env.step(action)
         time.sleep(1./240.)
