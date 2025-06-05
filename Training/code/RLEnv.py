@@ -27,6 +27,8 @@ class RLEnv(BaseRLAviary):
         self.INITIAL_XYZS = parameters['initial_xyzs']
         self.CTRL_FREQ = parameters['ctrl_freq']
 
+        self.ORIGINAL_XYZS = np.copy(self.INITIAL_XYZS)
+
         self.FORCE_MAG_MIN_XY = 75
         self.FORCE_MAG_MAX_XY = 100
         self.FORCE_MAG_MIN_Z = 50
@@ -48,6 +50,19 @@ class RLEnv(BaseRLAviary):
                          obs,
                          act)
 
+        self.drone_state_vec = self._getDroneStateVector(0)
+
+    def step(self, action):
+        obs, reward, terminated, truncated, info = super().step(action)
+        # Compute the reward, termination, truncation, and info for one step
+
+        if self._getCollision(self.DRONE_IDS[0]):
+            reward = self._computeReward()
+
+            self.reset_drone()
+            
+        return obs, reward, terminated, truncated, info
+
     def _computeReward(self):
         ret = 0
 
@@ -68,9 +83,44 @@ class RLEnv(BaseRLAviary):
 
         return info
 
+    def _getCollision(self, obj):
+
+        constact_points = p.getContactPoints(obj, physicsClientId=self.CLIENT)
+
+        if len(constact_points) > 0:
+            return True
+        else:
+            return False
+
     def _addObstacles(self):
         # Add initial obstacles or environment features here if needed
         
+        pass
+
+    def reset_drone(self):
+        drone_id = 0
+
+        self.pos = np.zeros((self.NUM_DRONES, 3))
+        self.quat = np.zeros((self.NUM_DRONES, 4))
+        self.quat[0,3] = 1
+        self.rpy = np.zeros((self.NUM_DRONES, 3))
+        self.vel = np.zeros((self.NUM_DRONES, 3))
+        self.ang_vel = np.zeros((self.NUM_DRONES, 3))
+
+        p.resetBasePositionAndOrientation(
+            self.DRONE_IDS[drone_id],
+            self.INITIAL_XYZS[drone_id,:],
+            p.getQuaternionFromEuler(self.INIT_RPYS[drone_id,:]),
+            physicsClientId=self.CLIENT)
+        p.resetBaseVelocity(
+            self.DRONE_IDS[drone_id],
+            self.vel[drone_id,:],
+            self.ang_vel[drone_id,:],
+            physicsClientId=self.CLIENT)
+        # Reset the drone state vector
+
+        self.ctrl[drone_id].reset
+
         pass
 
     def addBall(self,position=[0.0,0.0,0.0],force=[0.0,0.0,0.0]):
