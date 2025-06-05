@@ -27,6 +27,7 @@ class RLEnv(BaseRLAviary):
         self.INITIAL_XYZS = parameters['initial_xyzs']
         self.CTRL_FREQ = parameters['ctrl_freq']
         self.TARGET_POS = parameters['target_pos']
+        self.ACT4 = parameters['act4']
 
         self.ORIGINAL_XYZS = np.copy(self.INITIAL_XYZS)
 
@@ -85,6 +86,7 @@ class RLEnv(BaseRLAviary):
         return obs, info
 
     def _computeReward(self):
+        # TODO
         ret = 0
 
         return ret
@@ -108,7 +110,6 @@ class RLEnv(BaseRLAviary):
         # If no ball is in the air terminate
         Terminated = True
         return Terminated
-
 
     def _computeTruncated(self):
         Truncated = False
@@ -134,11 +135,6 @@ class RLEnv(BaseRLAviary):
 
         return Truncated
 
-    def _computeInfo(self):
-        info = {}
-
-        return info
-
     def _getCollision(self, obj):
 
         constact_points = p.getContactPoints(obj, physicsClientId=self.CLIENT)
@@ -148,10 +144,28 @@ class RLEnv(BaseRLAviary):
         else:
             return False
 
-    def _addObstacles(self):
-        # Add initial obstacles or environment features here if needed
-        
-        pass
+    def _obesvationSpace(self):
+        if self.OBS_TYPE == ObservationType and self.ACT_TYPE == ActionType.PID:
+            pos_low = np.array([-5, -5, 0])
+            pos_high = np.array([5, 5, 5])
+
+            # Add drone obesrvation space
+            obs_drone_lower_bound = np.array([[pos_low] for drone in range(self.NUM_DRONES)])
+            obs_drone_upper_bound = np.array([[pos_high] for drone in range(self.NUM_DRONES)])
+
+            # Add object observation space
+            obs_obj_lower_bound = np.hstack([obs_lower_bound, np.array([[pos_low] for obj in range(self.NUM_OBJECTS)])])
+            obs_obj_upper_bound = np.hstack([obs_upper_bound, np.array([[pos_high] for obj in range(self.NUM_OBJECTS)])])
+
+            return spaces.Dict({
+                "Drone_position": spaces.Box(low=obs_drone_lower_bound, high=obs_drone_upper_bound, dtype=np.float32),
+                "Object_position_k": spaces.Box(low=obs_obj_lower_bound, high=obs_obj_upper_bound, dtype=np.float32),
+                "Object_position_k_-1": spaces.Box(low=obs_obj_lower_bound, high=obs_obj_upper_bound, dtype=np.float32)})
+        else:
+            super()._obesvationSpace()
+
+    def _computeInfo(self):
+        return {"info": 0}
 
     def reset_drone(self):
         drone_id = 0
@@ -219,5 +233,8 @@ class RLEnv(BaseRLAviary):
 
         # Add the ball with the generated position and force
         self.addBall(position=[x_ball, y_ball, z_ball], force=[force_x, force_y, force_z])
-
+    
+    def getAction(self):
+        # TODO
+        super().getAction()
         pass
