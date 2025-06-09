@@ -279,10 +279,14 @@ class RLEnv(BaseRLAviary):
 
         pass
 
-    def addBall(self,position=[0.0,0.0,0.0],force=[0.0,0.0,0.0]):
+    def addBall(self,position : None|np.ndarray[float] = None,force : None|np.ndarray[float] = None):
         # position: where the ball will be added
         # force: the force applied to the ball at the moment of creation
 
+        if position is None:
+            position = np.zeros(3, dtype=float)  # Default position at the origin
+        if force is None:
+            force = np.zeros(3, dtype=float)  # Default force is zero
         search_path = "/home/alex/Desktop/Exjobb/RL_collision_avoidance/Training/resources"
         pb.setAdditionalSearchPath(search_path)
         
@@ -324,8 +328,3 @@ class RLEnv(BaseRLAviary):
 
         # Add the ball with the generated position and force
         self.addBall(position=[x_ball, y_ball, z_ball], force=[force_x, force_y, force_z])
-    
-    def getAction(self):
-        # TODO
-        super().getAction()
-        pass
