@@ -202,24 +202,24 @@ class RLEnv(BaseRLAviary):
         else:
             return False
 
-    def _obesvationSpace(self):
-        if self.OBS_TYPE == ObservationType and self.ACT_TYPE == ActionType.PID:
+    def _observationSpace(self):
+        if self.OBS_TYPE == ObservationType.KIN and self.ACT_TYPE == ActionType.PID:
             pos_low = np.array([-5.0, -5.0, 0])
             pos_high = np.array([5.0, 5.0, 5.0])
 
             # Add drone obesrvation space
-            obs_drone_lower_bound = np.array([[pos_low] for drone in range(self.NUM_DRONES)])
-            obs_drone_upper_bound = np.array([[pos_high] for drone in range(self.NUM_DRONES)])
+            obs_drone_lower_bound = np.array([pos_low for drone in range(self.NUM_DRONES)])
+            obs_drone_upper_bound = np.array([pos_high for drone in range(self.NUM_DRONES)])
 
             # Add object observation space
-            obs_obj_lower_bound = np.hstack([obs_drone_lower_bound, np.array([[pos_low] for obj in range(self.NUM_OBJECTS)])])
-            obs_obj_upper_bound = np.hstack([obs_drone_upper_bound, np.array([[pos_high] for obj in range(self.NUM_OBJECTS)])])
+            obs_obj_lower_bound = np.hstack([np.array([pos_low for obj in range(self.NUM_OBJECTS)])])
+            obs_obj_upper_bound = np.hstack([np.array([pos_high for obj in range(self.NUM_OBJECTS)])])
 
             return spaces.Dict({
                 "Drone_position": spaces.Box(low=obs_drone_lower_bound, high=obs_drone_upper_bound, dtype=np.float32),
                 "Object_position": spaces.Box(low=obs_obj_lower_bound, high=obs_obj_upper_bound, dtype=np.float32)})
         else:
-            super()._obesvationSpace()
+            super()._observationSpace()
 
     def _computeObs(self):
         if self.OBS_TYPE == ObservationType.KIN and self.ACT_TYPE == ActionType.PID:
