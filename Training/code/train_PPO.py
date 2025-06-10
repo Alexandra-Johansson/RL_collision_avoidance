@@ -1,5 +1,6 @@
 import os
 import time
+import math
 import numpy as np
 from datetime import datetime
 
@@ -62,11 +63,45 @@ class Train_PPO():
                                      callback_on_new_best = callback_on_best,
                                      verbose = 1,
                                      n_eval_episodes = self.parameters['eval_episodes'],
-                                     best_model_save_path = self.filename + '/best_model/',
+                                     best_model_save_path = self.filename,
                                      log_path = self.filename + '/logs/',
                                      eval_freq = self.eval_freq,
                                      deterministic = True)
         
+        time_start = time.time()
         model.learn(total_timesteps=self.parameters['total_timesteps'],
                     callback=eval_callback,
                     log_interval = self.parameters['nr_of_env'])
+        
+        time_end = time.time()
+
+        model.save(self.filename+'/final_model.zip')
+        print(self.filename)
+        print("Model saved")
+
+        time_taken = time_end - time_start
+        time_taken_h = math.floor(time_taken/(60*60))
+        time_taken -= time_taken_h*60*60
+        time_taken_m = math.floor(time_taken/60)
+        time_taken_s = round(time_taken - time_taken_m*60)
+
+        print(f"Model trained in: {time_taken_h}h.{time_taken_m}m.{time_taken_s}s.")
+        input("Press enter to continue...")
+
+        eval_env.close()
+        training_env.close()
+
+        if os.path.isfile(self.filename+'/best_model.zip'):
+            path = self.filename+'/best_model.zip'
+        else:
+            print("[ERROR]: no model under the specified path", self.filename)
+        model = PPO.load(path)
+        print("Model loaded")
+
+        test_env = RLEnv(parameters = self.parameters, gui = True)
+
+        mean_reward, std_reward = evaluate_policy(model,
+                                                    test_env,
+                                                    n_eval_episodes=10
+                                                    )
+        print("\n\n\nMean reward ", mean_reward, " +- ", std_reward, "\n\n")
