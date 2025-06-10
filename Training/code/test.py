@@ -11,6 +11,7 @@ parameters = {
     'num_objects': 1,  # Number of balls to add
     'initial_xyzs': np.array([[1, 2, 0.1]]),
     'ctrl_freq': 240,
+    'eval_freq': 1,  # Evaluate every 1 episodes
     'target_pos': np.array([[.0, .0, 1.0]]),
     'target_radius': 0.25,  # Radius of the target sphere
     'avoidance_radius': 0.75,  # Radius of the avoidance sphere
