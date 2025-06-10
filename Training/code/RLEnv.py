@@ -29,7 +29,6 @@ class RLEnv(BaseRLAviary):
         self.TARGET_POS = parameters['target_pos']
         self.TARGET_RADIUS = parameters['target_radius']
         self.AVOIDANCE_RADIUS = parameters['avoidance_radius']
-        self.ACT4 = parameters['act4']
         self.OBS_NOISE = parameters['obs_noise']
         self.OBS_NOISE_STD = parameters['obs_noise_std']
 
@@ -73,7 +72,9 @@ class RLEnv(BaseRLAviary):
         self.ang_vel = drone_state_vec[13:16]  # Angular velocity
         self.obj_distances = np.zeros((self.NUM_OBJECTS, 1))
 
-    def step(self, action):
+    def step(self, rel_action):
+        action = self.curr_drone_pos + rel_action
+        print(f"Action: {action}")
         obs, reward, terminated, truncated, info = super().step(action)
         # Compute the reward, termination, truncation, and info for one step
 
@@ -81,24 +82,39 @@ class RLEnv(BaseRLAviary):
             reward = self._computeReward()
 
             self.reset_drone()
+
+            action = np.array([[0,0,0]])
+
+            obs, _, terminated, truncated, info = super().step(action)
             
         return obs, reward, terminated, truncated, info
 
     def reset(self, seed = None, options = None):
         drone_id = 0
         self.ctrl[drone_id].reset()
+        
+        for ball in self.ball_list:
+            try:
+                pb.removeBody(ball, physicsClientId=self.CLIENT)
+                self.ball_list.pop(0)
+            except Exception:
+                # If the ball is already removed, ignore the error
+                pass
 
         obs, info = super().reset(seed, options)
 
         drone_state_vec = self._getDroneStateVector(drone_id)
-        self.reward_state = drone_state_vec[0:3]  # Position
+        self.curr_drone_pos = drone_state_vec[0:3]  # Position
         self.target_distance = np.linalg.norm(self.TARGET_POS[0] - drone_state_vec[0:3])
         self.ang_vel = drone_state_vec[13:16] # Angular velocity
+
+        #self.addBallRandom()
 
         return obs, info
 
     def _computeReward(self):
         # TODO
+        ret = 0.0
 
         drone_id = 0
         drone_state_vec = self._getDroneStateVector(drone_id)
@@ -117,11 +133,13 @@ class RLEnv(BaseRLAviary):
 
         # Check for collisions and compute rewards
         if self._getCollision(self.DRONE_IDS[0]):
-            ret = self.REWARD_COLLISION
+            ret -= self.REWARD_COLLISION
+            return ret
             # Negative reward for collision
         # Check if the episode is terminated
         elif self._computeTerminated():
             ret = self.REWARD_TERMINATED
+            return ret
             # Reward for avoiding all obstacles
         # Else calculate the reward based on the states
         else:
@@ -131,7 +149,7 @@ class RLEnv(BaseRLAviary):
 
             # Reward based on factors
             # 1. Negative reward based on change of distance to target
-            ret = -self.REWARD_TARGET_DISTANCE_DELTA * target_distance_delta
+            ret = self.REWARD_TARGET_DISTANCE_DELTA * target_distance_delta
             # 2. Negative reward based on if objects are closer or further away
             if (self.obj_distances < self.AVOIDANCE_RADIUS):
                 # If the object is to close, give a reward based on change in distance
@@ -146,23 +164,27 @@ class RLEnv(BaseRLAviary):
                 # If the drone is outside the target radius, give a negative reward
                 ret -= self.REWARD_IN_TARGET*1.5
 
+        #print(f"Reward: {ret}")
         return ret
 
     def _computeTerminated(self):
         Terminated = False
         
         # If the drone has avoided all obstacles, terminate the episode
-        i = 0
         for ball in self.ball_list:
-            i += 1
             vel, ang_v = pb.getBaseVelocity(ball, physicsClientId = self.CLIENT)
             pos, quat = pb.getBasePositionAndOrientation(ball, physicsClientId = self.CLIENT)
             if (vel[2] > 1e-4) or (pos[2] > 1e-1):
                 # If a ball is in the air don't terminate
                 return Terminated
+            
+        if self.target_distance < self.TARGET_RADIUS:
+            # If the drone is within the target radius, terminate the episode
+            Terminated = True
+            print("Drone within target radius, episode terminated.")
         
         # If no ball is in the air terminate
-        Terminated = True
+        # Terminated = True
         return Terminated
 
     def _computeTruncated(self):
@@ -237,7 +259,7 @@ class RLEnv(BaseRLAviary):
                 drone_pos[i,:] = obs[0:3]# + noise_drone[drone,:]
 
             obj_pos = np.zeros((self.NUM_OBJECTS,3))
-            for i in range(self.NUM_OBJECTS):
+            for i in range(len(self.ball_list)):
                 obs, _ = pb.getBasePositionAndOrientation(self.ball_list[i], physicsClientId=self.CLIENT)
                 obj_pos[i,:] = obs[0:3] + noise_obj[i,:]
 
@@ -251,7 +273,8 @@ class RLEnv(BaseRLAviary):
             return super()._computeObs()
 
     def _computeInfo(self):
-        return {"info": 0}
+        # TODO
+        return {"info": 0}   
 
     def reset_drone(self):
         drone_id = 0
@@ -275,9 +298,7 @@ class RLEnv(BaseRLAviary):
             physicsClientId=self.CLIENT)
         # Reset the drone state vector
 
-        self.ctrl[drone_id].reset
-
-        pass
+        self.ctrl[drone_id].reset()
 
     def addBall(self,position : None|np.ndarray[float] = None,force : None|np.ndarray[float] = None):
         # position: where the ball will be added
@@ -290,13 +311,17 @@ class RLEnv(BaseRLAviary):
         search_path = "/home/alex/Desktop/Exjobb/RL_collision_avoidance/Training/resources"
         pb.setAdditionalSearchPath(search_path)
         
-        self.ball_list.append(pb.loadURDF("custom_sphere_small.urdf",
-                       basePosition=(position[0], position[1], position[2])))
-
-        if (len(self.ball_list) > self.NUM_OBJECTS):
+        while (len(self.ball_list) >= self.NUM_OBJECTS):
             # Remove the oldest ball if the limit is reached
-            pb.removeBody(self.ball_list[0], physicsClientId=self.CLIENT)
-            self.ball_list.pop(0)
+            try:
+                pb.removeBody(self.ball_list[0], physicsClientId=self.CLIENT)
+                self.ball_list.pop(0)
+            except Exception:
+                pass
+                
+        self.ball_list.append(pb.loadURDF("custom_sphere_small.urdf",
+                       basePosition=(position[0], position[1], position[2]),
+                       physicsClientId=self.CLIENT))
         
         position = [0, 0, 0]  # Relative position (center of mass)
         pb.applyExternalForce(
