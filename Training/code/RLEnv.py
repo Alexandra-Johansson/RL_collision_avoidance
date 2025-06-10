@@ -76,6 +76,7 @@ class RLEnv(BaseRLAviary):
     def step(self, rel_action):
         action = self.curr_drone_pos + rel_action
         #print(f"Action: {action}")
+        #action = np.array([[.0,.0,-1.0]])
         obs, reward, terminated, truncated, info = super().step(action)
         # Compute the reward, termination, truncation, and info for one step
 
@@ -206,8 +207,7 @@ class RLEnv(BaseRLAviary):
             print("Drone out of bounds, episode truncated.")
 
         elif (abs(drone_state_vec[7]) > .9 or
-                abs(drone_state_vec[8]) > .9 or
-                abs(drone_state_vec[9]) > .9):
+                abs(drone_state_vec[8]) > .9):
             Truncated = True
             print("Drone orientation out of bounds, episode truncated.")
 
