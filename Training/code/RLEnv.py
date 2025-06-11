@@ -36,6 +36,7 @@ class RLEnv(BaseRLAviary):
         self.REWARD_TERMINATED = parameters['reward_terminated']
         self.REWARD_TARGET_DISTANCE = parameters['reward_target_distance']
         self.REWARD_TARGET_DISTANCE_DELTA = parameters['reward_target_distance_delta']
+        self.REWARD_ANGULAR_VELOCITY_DELTA = parameters['reward_angular_velocity_delta']
         self.REWARD_OBJECT_DISTANCE_DELTA = parameters['reward_object_distance_delta']
         self.REWARD_STEP = parameters['reward_step']
         self.REWARD_IN_TARGET = parameters['reward_in_target']
@@ -122,6 +123,8 @@ class RLEnv(BaseRLAviary):
         drone_state_vec = self._getDroneStateVector(drone_id)
 
         self.curr_drone_pos = drone_state_vec[0:3]
+        prev_ang_vel = self.ang_vel
+        self.ang_vel = drone_state_vec[13:16]
 
         prev_target_distance = np.copy(self.target_distance)
         self.target_distance = np.linalg.norm(self.TARGET_POS[0] - self.curr_drone_pos)
@@ -147,7 +150,10 @@ class RLEnv(BaseRLAviary):
             
             target_distance_delta = prev_target_distance - self.target_distance
 
+            ang_vel_delta = np.sum((prev_ang_vel - self.ang_vel)**2)
+
             # Reward based on factors
+            ret += ang_vel_delta*self.REWARD_ANGULAR_VELOCITY_DELTA # Negative reward based on change in velocity
             if (self.target_distance <= self.TARGET_RADIUS):
                 # If the drone is within the target radius, give a positive reward
                 ret += self.REWARD_IN_TARGET
