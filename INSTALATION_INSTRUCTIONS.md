@@ -1,5 +1,5 @@
 # Instalation instructions
-1. Install Ubuntu 22.
+1. Install Ubuntu 24.
 2. Create a virtual environment for python
 ```
 python -m venv env_name
