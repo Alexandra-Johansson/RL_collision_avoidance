@@ -1,24 +1,29 @@
+import math
 import os
 import time
-import math
-import numpy as np
 from datetime import datetime
 
-from gym_pybullet_drones.utils.Logger import Logger
-from gym_pybullet_drones.utils.enums import ObservationType, ActionType
-from gym_pybullet_drones.utils.utils import sync
-
-from stable_baselines3 import PPO
-from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3.common.callbacks import EvalCallback, StopTrainingOnRewardThreshold, StopTrainingOnMaxEpisodes
-from stable_baselines3.common.evaluation import evaluate_policy
-from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
-from stable_baselines3.common.buffers import DictReplayBuffer
-
-from stable_baselines3.common.monitor import Monitor    
-
-from RLEnv import RLEnv
+import numpy as np
 from data_handling import Txt_file
+from gym_pybullet_drones.utils.enums import ActionType, ObservationType
+from gym_pybullet_drones.utils.Logger import Logger
+from gym_pybullet_drones.utils.utils import sync
+from RLEnv import RLEnv
+from stable_baselines3 import PPO
+from stable_baselines3.common.buffers import DictReplayBuffer
+from stable_baselines3.common.callbacks import (
+    EvalCallback,
+    StopTrainingOnMaxEpisodes,
+    StopTrainingOnRewardThreshold,
+)
+from stable_baselines3.common.env_util import make_vec_env
+from stable_baselines3.common.evaluation import evaluate_policy
+from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.noise import (
+    NormalActionNoise,
+    OrnsteinUhlenbeckActionNoise,
+)
+
 
 class Train_PPO():
     def __init__(self, parameters, train_gui : bool = False):
