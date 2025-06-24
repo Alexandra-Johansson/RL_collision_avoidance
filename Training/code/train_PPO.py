@@ -4,11 +4,14 @@ import time
 from datetime import datetime
 
 import numpy as np
-from data_handling import Txt_file
+from data_handling import Txt_file, Plot
 from gym_pybullet_drones.utils.enums import ActionType, ObservationType
 from gym_pybullet_drones.utils.Logger import Logger
 from gym_pybullet_drones.utils.utils import sync
+
 from RLEnv import RLEnv
+from data_handling import Plot
+
 from stable_baselines3 import PPO
 from stable_baselines3.common.buffers import DictReplayBuffer
 from stable_baselines3.common.callbacks import (
@@ -17,6 +20,7 @@ from stable_baselines3.common.callbacks import (
     StopTrainingOnRewardThreshold,
 )
 from stable_baselines3.common.env_util import make_vec_env
+from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.noise import (
@@ -35,9 +39,11 @@ class Train_PPO():
 
         self.output_folder = 'Training/results'
 
-        self.filename = os.path.join(self.output_folder, 'PPO_training_' )#+ datetime.now().strftime("%d.%m.%Y-%H.%M.%S"))
+        self.filename = os.path.join(self.output_folder, 'PPO_training_' + datetime.now().strftime("%d.%m.%Y-%H.%M.%S"))
         if not os.path.exists(self.filename):
             os.makedirs(self.filename + '/')
+
+        self.plot = Plot(self.filename)
 
         Param = Txt_file(self.filename)
         Param.save_parameters(self.parameters)
@@ -47,9 +53,13 @@ class Train_PPO():
         training_env = make_vec_env(RLEnv, 
                                     env_kwargs = dict(parameters = self.parameters), 
                                     n_envs = self.parameters['nr_of_env'],
-                                    seed = 0)
+                                    seed = 0, 
+                                    vec_env_cls=SubprocVecEnv)
 
-        eval_env = Monitor(RLEnv(parameters=self.parameters, gui=self.train_gui))
+        eval_env = SubprocVecEnv([
+                                    lambda: Monitor(RLEnv(parameters=self.parameters, gui=self.train_gui))
+                                    for _ in range(self.parameters['eval_episodes'])
+])
 
         print("[INFO] Action space: ", training_env.action_space)
         print("[INFO] Observation space: ", training_env.observation_space)
@@ -58,6 +68,8 @@ class Train_PPO():
                     training_env,
                     learning_rate = self.parameters['learning_rate'],
                     batch_size = self.parameters['batch_size'],
+                    n_epochs = self.parameters['num_epochs'],
+                    tensorboard_log = self.filename + '/tensorboard_logs/',
                     verbose = 1)
         
         target_reward = self.parameters['target_reward']
@@ -72,11 +84,13 @@ class Train_PPO():
                                      log_path = self.filename + '/logs/',
                                      eval_freq = self.eval_freq,
                                      deterministic = True)
-        
+
+        self.plot.tensorboard()
+
         time_start = time.time()
         model.learn(total_timesteps=self.parameters['total_timesteps'],
                     callback=eval_callback,
-                    log_interval = self.parameters['nr_of_env'])
+                    log_interval = 1)
         
         time_end = time.time()
 
@@ -91,22 +105,9 @@ class Train_PPO():
         time_taken_s = round(time_taken - time_taken_m*60)
 
         print(f"Model trained in: {time_taken_h}h.{time_taken_m}m.{time_taken_s}s.")
-        input("Press enter to continue...")
 
         eval_env.close()
         training_env.close()
 
-        if os.path.isfile(self.filename+'/best_model.zip'):
-            path = self.filename+'/best_model.zip'
-        else:
-            print("[ERROR]: no model under the specified path", self.filename)
-        model = PPO.load(path)
-        print("Model loaded")
-
-        test_env = RLEnv(parameters = self.parameters, gui = True)
-
-        mean_reward, std_reward = evaluate_policy(model,
-                                                    test_env,
-                                                    n_eval_episodes=10
-                                                    )
-        print("\n\n\nMean reward ", mean_reward, " +- ", std_reward, "\n\n")
+    def make_eval_env(self):
+        return Monitor(RLEnv(parameters=self.parameters, gui=self.train_gui))
