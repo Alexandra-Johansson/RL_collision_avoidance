@@ -71,10 +71,9 @@ class Train_PPO():
                     n_epochs = self.parameters['num_epochs'],
                     tensorboard_log = self.filename + '/tensorboard_logs/',
                     verbose = 1)
-        
-        target_reward = self.parameters['target_reward']
 
-        callback_on_best = StopTrainingOnRewardThreshold(reward_threshold=target_reward, verbose=1)
+        callback_on_best = StopTrainingOnRewardThreshold(reward_threshold = self.parameters['target_reward'],
+                                                        verbose=1)
 
         eval_callback = EvalCallback(eval_env,
                                      callback_on_new_best = callback_on_best,
@@ -82,7 +81,7 @@ class Train_PPO():
                                      n_eval_episodes = self.parameters['eval_episodes'],
                                      best_model_save_path = self.filename,
                                      log_path = self.filename + '/logs/',
-                                     eval_freq = self.eval_freq,
+                                     eval_freq = max(self.eval_freq // self.parameters['nr_of_env'], 1),
                                      deterministic = True)
 
         self.plot.tensorboard()
@@ -90,7 +89,8 @@ class Train_PPO():
         time_start = time.time()
         model.learn(total_timesteps=self.parameters['total_timesteps'],
                     callback=eval_callback,
-                    log_interval = 1)
+                    log_interval = self.parameters['nr_of_env'],
+                    progress_bar = True)
         
         time_end = time.time()
 
