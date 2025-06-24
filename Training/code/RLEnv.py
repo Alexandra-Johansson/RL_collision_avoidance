@@ -184,7 +184,7 @@ class RLEnv(BaseRLAviary):
                 # If the object is to close, give a reward based on change in distance
                 ret += self.REWARD_OBJECT_DISTANCE_DELTA * obj_distances_delta
             # 3. Negative reward for each step
-            #ret += self.REWARD_STEP
+            ret += self.REWARD_STEP
 
         #print(f"Reward: {ret}")
         return ret
@@ -203,7 +203,7 @@ class RLEnv(BaseRLAviary):
         if self.target_distance < self.TARGET_RADIUS:
             # If the drone is within the target radius, terminate the episode
             Terminated = True
-            print("Drone within target radius, episode terminated.")
+            #print("Drone within target radius, episode terminated.")
 
         if Terminated:
             self.getRandomInitialPos()
@@ -226,18 +226,18 @@ class RLEnv(BaseRLAviary):
 
         if (self.step_counter/self.PYB_FREQ > self.EPISODE_LEN_SEC):
             Truncated = True
-            print("Time limit reached, episode truncated.")
+            #print("Time limit reached, episode truncated.")
         
         elif (abs(drone_state_vec[0]) > 5 or
             abs(drone_state_vec[1]) > 5 or
             abs(drone_state_vec[2]) > 5):
             Truncated = True
-            print("Drone position out of bounds, episode truncated.")
+            #print("Drone position out of bounds, episode truncated.")
 
         elif (abs(drone_state_vec[7]) > .9 or
                 abs(drone_state_vec[8]) > .9):
             Truncated = True
-            print("Drone orientation out of bounds, episode truncated.")
+            #print("Drone orientation out of bounds, episode truncated.")
 
         if Truncated:
             self.getRandomInitialPos()
