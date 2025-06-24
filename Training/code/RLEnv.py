@@ -1,6 +1,8 @@
 import math
 import time
 
+from predictor import KalmanFilter
+
 import numpy as np
 import pybullet as pb
 import pybullet_data
@@ -58,7 +60,7 @@ class RLEnv(BaseRLAviary):
         self.FORCE_VAR = 5
 
         self.ball_list = []
-
+        
         super().__init__(self.DRONE_MODEL,
                          num_drones,
                          neighborhood_radius,
@@ -73,6 +75,12 @@ class RLEnv(BaseRLAviary):
                          act)
 
         self.EPISODE_LEN_SEC = parameters['episode_length']
+
+        self.kf = KalmanFilter(dt = 1, 
+                               process_var = 1,
+                               measurement_var = 1,
+                               gravity = self.G)
+        
 
         drone_id = 0
         drone_state_vec = self._getDroneStateVector(drone_id)
@@ -259,6 +267,8 @@ class RLEnv(BaseRLAviary):
             pos_high = np.array([5.0, 5.0, 5.0])
             vel_low = np.array([-2,-2,-2])
             vel_high = np.array([2,2,2])
+            ball_vel_low = np.array([-20, -20, -20])
+            ball_vel_high = np.array([20, 20, 20])
             rpy_low = np.array(-0.9*np.ones(3))
             rpy_high = np.array(0.9*np.ones(3))
             rpy_vel_low = np.array([-10, -10, -6])
@@ -277,6 +287,8 @@ class RLEnv(BaseRLAviary):
             # Add object observation space
             obs_obj_lower_bound = np.hstack([np.array([pos_low for obj in range(self.NUM_OBJECTS)])])
             obs_obj_upper_bound = np.hstack([np.array([pos_high for obj in range(self.NUM_OBJECTS)])])
+            obs_obj_vel_lower_bound = np.hstack([np.array([ball_vel_low for obj in range(self.NUM_OBJECTS)])])
+            obs_obj_vel_upper_bound = np.hstack([np.array([ball_vel_high for obj in range(self.NUM_OBJECTS)])])
 
             return spaces.Dict({
                 "Drone_position": spaces.Box(low=obs_drone_lower_bound, high=obs_drone_upper_bound, dtype=np.float32),
@@ -284,6 +296,8 @@ class RLEnv(BaseRLAviary):
                 "Drone_rpy": spaces.Box(low=obs_drone_rpy_lower_bound, high=obs_drone_rpy_upper_bound, dtype=np.float32),
                 "Drone_rpy_velocity": spaces.Box(low=obs_drone_rpy_vel_lower_bound, high=obs_drone_rpy_vel_upper_bound, dtype=np.float32),
                 "Object_position": spaces.Box(low=obs_obj_lower_bound, high=obs_obj_upper_bound, dtype=np.float32)})
+                #"Object_velocity": spaces.Box(low=obs_obj_vel_lower_bound, high=obs_obj_vel_upper_bound, dtype=np.float32)})
+    
         else:
             super()._observationSpace()
 
@@ -340,7 +354,8 @@ class RLEnv(BaseRLAviary):
 
     def _computeInfo(self):
         # TODO
-        return {"info": 0}   
+        return {"info": 0,
+                "is_success": self._computeTerminated()}   
 
     def reset_drone(self):
         drone_id = 0
