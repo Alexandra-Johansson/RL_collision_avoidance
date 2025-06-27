@@ -14,7 +14,7 @@ parameters = {
     'target_radius': 0.05,  # Radius of the target sphere
     'avoidance_radius': 1.,  # Radius of the avoidance sphere
     'critical_safety_distance': 0.25,
-    'episode_length': 15,  # seconds
+    'episode_length': 4,  # seconds
     'eval_episodes' : 1,  # Number of episodes to evaluate
     'learning_rate': 3e-3,
     'batch_size': 512, # Should be a divisor of n_steps*n_envs
