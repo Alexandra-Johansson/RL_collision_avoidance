@@ -18,7 +18,7 @@ class KalmanFilter:
         self.R = measurement_var * np.eye(3)    # Measurement noise
 
         self.x = np.zeros((6,1))    # Initial state
-        self.p = np.eye(6)          # Initial covariance
+        self.P = np.eye(6)          # Initial covariance
 
     def measurementUpdate(self, meas):
         meas = np.reshape(meas, (3,1))
@@ -32,15 +32,15 @@ class KalmanFilter:
     def timeUpdate(self):
         self.x = self.F @ self.x
         self.x[5, 0] -= self.gravity * self.dt # Include effect of gravity
-        self.p = self.F @ self.P @ self.F.T + self.Q
+        self.P = self.F @ self.P @ self.F.T + self.Q
 
     def predict(self, nr_predictions):
-        x = np.array([self.x])
+        x = [self.x.copy()]
         for _ in range(nr_predictions):
             temp = self.F @ x[-1]
             temp[5, 0] -= self.gravity * self.dt
-            x.append(x, temp)
-        return x
+            x.append(temp)
+        return np.array(x)
 
     def getState(self):
-        return self.x.flatten()
+        return self.x
