@@ -199,6 +199,7 @@ class RLEnv(BaseRLAviary):
     def _computeTerminated(self):
         Terminated = False
         
+        '''
         # If the drone has avoided all obstacles, terminate the episode
         for ball in self.ball_list:
             vel, ang_v = pb.getBaseVelocity(ball, physicsClientId = self.CLIENT)
@@ -206,7 +207,10 @@ class RLEnv(BaseRLAviary):
             if (vel[2] > 1e-4) or (pos[2] > 1e-1):
                 # If a ball is in the air don't terminate
                 return Terminated
-
+        '''
+        if (self.step_counter/self.PYB_FREQ > self.EPISODE_LEN_SEC):
+            Terminated = True
+            #print("Time limit reached, episode terminated.")
         ''' 
         if self.target_distance < self.TARGET_RADIUS:
             # If the drone is within the target radius, terminate the episode
@@ -218,7 +222,7 @@ class RLEnv(BaseRLAviary):
         '''
 
         # If no ball is in the air terminate
-        Terminated = True
+        #Terminated = True
         return Terminated
 
     def _computeTruncated(self):
@@ -230,10 +234,6 @@ class RLEnv(BaseRLAviary):
         if (self._getCollision(self.DRONE_IDS[0])):
             Truncated = True
             #print("Collision detected, episode truncated.")
-
-        elif (self.step_counter/self.PYB_FREQ > self.EPISODE_LEN_SEC):
-            Truncated = True
-            #print("Time limit reached, episode truncated.")
         
         elif (abs(drone_state_vec[0]) > 5 or
             abs(drone_state_vec[1]) > 5 or
