@@ -5,13 +5,9 @@ from predictor import KalmanFilter
 
 import numpy as np
 import pybullet as pb
-import pybullet_data
-from gym_pybullet_drones.control.DSLPIDControl import DSLPIDControl
 from gym_pybullet_drones.envs.BaseRLAviary import BaseRLAviary
 from gym_pybullet_drones.utils.enums import (
     ActionType,
-    DroneModel,
-    ImageType,
     ObservationType,
     Physics,
 )
@@ -39,8 +35,11 @@ class RLEnv(BaseRLAviary):
         self.TARGET_POS = parameters['target_pos']
         self.TARGET_RADIUS = parameters['target_radius']
         self.AVOIDANCE_RADIUS = parameters['avoidance_radius']
+        self.CRITICAL_SAFETY_DISTANCE = parameters['critical_safety_distance']
         self.OBS_NOISE = parameters['obs_noise']
         self.OBS_NOISE_STD = parameters['obs_noise_std']
+        self.PROCESS_NOISE = parameters['kf_process_noise']
+        self.MEASUREMENT_NOISE = parameters['kf_measurement_noise']
 
         self.REWARD_COLLISION = parameters['reward_collision']
         self.REWARD_TERMINATED = parameters['reward_terminated']
@@ -53,11 +52,7 @@ class RLEnv(BaseRLAviary):
 
         self.ORIGINAL_XYZS = np.copy(self.INITIAL_XYZS)
 
-        self.FORCE_MAG_MIN_XY = 75
-        self.FORCE_MAG_MAX_XY = 100
-        self.FORCE_MAG_MIN_Z = 50
-        self.FORCE_MAG_MAX_Z = 100
-        self.FORCE_VAR = 5
+        self.VELOCITY_VAR = 0
 
         self.ball_list = []
         
@@ -76,11 +71,12 @@ class RLEnv(BaseRLAviary):
 
         self.EPISODE_LEN_SEC = parameters['episode_length']
 
-        self.kf = KalmanFilter(dt = 1, 
-                               process_var = 1,
-                               measurement_var = 1,
+        # Add more filters if multiple objects should be tracked
+        self.kf = KalmanFilter(dt = self.CTRL_TIMESTEP, 
+                               process_var = self.PROCESS_NOISE,
+                               measurement_var = self.MEASUREMENT_NOISE,
                                gravity = self.G)
-        
+
 
         drone_id = 0
         drone_state_vec = self._getDroneStateVector(drone_id)
@@ -92,7 +88,6 @@ class RLEnv(BaseRLAviary):
 
     def step(self, rel_action):
         action = self.curr_drone_pos + rel_action
-        #action = np.array([[.0,.0,-1.0]])
         obs, reward, terminated, truncated, info = super().step(action)
         # Compute the reward, termination, truncation, and info for one step
 
@@ -107,6 +102,8 @@ class RLEnv(BaseRLAviary):
             action = np.array([[0,0,0]])
 
             obs, _, terminated, truncated, info = super().step(action)
+
+            #print(time.time(), ": Collision detected")
             
         return obs, reward, terminated, truncated, info
 
@@ -131,7 +128,7 @@ class RLEnv(BaseRLAviary):
         self.target_distance = np.linalg.norm(self.TARGET_POS[0] - drone_state_vec[0:3])
         self.ang_vel = drone_state_vec[13:16] # Angular velocity
 
-        #self.addBallRandom()
+        self.addBallRandom()
 
         return obs, info
 
@@ -158,7 +155,9 @@ class RLEnv(BaseRLAviary):
             self.obj_distances[i] = np.linalg.norm(ball_pos[0:3] - self.curr_drone_pos)
 
         # Check for collisions and compute rewards
-        if self._getCollision(self.DRONE_IDS[0]):
+        if any(self.obj_distances < self.CRITICAL_SAFETY_DISTANCE):
+            ret = self.REWARD_COLLISION
+        elif self._getCollision(self.DRONE_IDS[0]):
             ret = self.REWARD_COLLISION
             # Negative reward for collision
         # Check if the episode is terminated
@@ -167,11 +166,11 @@ class RLEnv(BaseRLAviary):
             # Reward for avoiding all obstacles
         # Else calculate the reward based on the states
         else:
-            obj_distances_delta = prev_obj_distances - self.obj_distances
+            obj_distances_delta = np.sum(prev_obj_distances - self.obj_distances)
             
-            target_distance_delta = prev_target_distance - self.target_distance
+            target_distance_delta = np.sum(prev_target_distance - self.target_distance)
 
-            ang_vel_delta = np.sum(abs((prev_ang_vel - self.ang_vel)))
+            ang_vel_delta = np.sum(abs(prev_ang_vel - self.ang_vel))
 
             # Reward based on factors
             ret += ang_vel_delta*self.REWARD_ANGULAR_VELOCITY_DELTA # Negative reward based on change in velocity
@@ -180,22 +179,22 @@ class RLEnv(BaseRLAviary):
 
             if (self.target_distance <= self.TARGET_RADIUS):
                 # If the drone is within the target radius, give a positive reward
-                #ret += self.REWARD_IN_TARGET
+                ret += self.REWARD_IN_TARGET
                 ret += ((self.REWARD_TARGET_DISTANCE_DELTA * target_distance_delta)/self.CTRL_TIMESTEP)/2
             else:
                 # If the drone is outside the target radius, give a negative reward
                 ret += self.REWARD_TARGET_DISTANCE * self.target_distance
                 ret += (self.REWARD_TARGET_DISTANCE_DELTA * target_distance_delta)/self.CTRL_TIMESTEP
+                # Negative reward for each step outside the target
+                ret += self.REWARD_STEP
             
             # 2. Negative reward based on if objects are closer or further away
             if (self.obj_distances < self.AVOIDANCE_RADIUS):
                 # If the object is to close, give a reward based on change in distance
                 ret += self.REWARD_OBJECT_DISTANCE_DELTA * obj_distances_delta
-            # 3. Negative reward for each step
-            ret += self.REWARD_STEP
 
         #print(f"Reward: {ret}")
-        return ret
+        return float(ret)
 
     def _computeTerminated(self):
         Terminated = False
@@ -207,7 +206,8 @@ class RLEnv(BaseRLAviary):
             if (vel[2] > 1e-4) or (pos[2] > 1e-1):
                 # If a ball is in the air don't terminate
                 return Terminated
-            
+
+        ''' 
         if self.target_distance < self.TARGET_RADIUS:
             # If the drone is within the target radius, terminate the episode
             Terminated = True
@@ -215,9 +215,10 @@ class RLEnv(BaseRLAviary):
 
         if Terminated:
             self.getRandomInitialPos()
-        
+        '''
+
         # If no ball is in the air terminate
-        # Terminated = True
+        Terminated = True
         return Terminated
 
     def _computeTruncated(self):
@@ -226,13 +227,11 @@ class RLEnv(BaseRLAviary):
         drone_id = 0
         drone_state_vec = self._getDroneStateVector(drone_id)
 
-        '''
-        elif (self._getCollision(self.DRONE_IDS[0])):
+        if (self._getCollision(self.DRONE_IDS[0])):
             Truncated = True
-            print("Collision detected, episode truncated.")
-        '''
+            #print("Collision detected, episode truncated.")
 
-        if (self.step_counter/self.PYB_FREQ > self.EPISODE_LEN_SEC):
+        elif (self.step_counter/self.PYB_FREQ > self.EPISODE_LEN_SEC):
             Truncated = True
             #print("Time limit reached, episode truncated.")
         
@@ -247,9 +246,11 @@ class RLEnv(BaseRLAviary):
             Truncated = True
             #print("Drone orientation out of bounds, episode truncated.")
 
+        '''
         if Truncated:
             self.getRandomInitialPos()
-
+        '''
+        
         return Truncated
 
     def _getCollision(self, obj):
@@ -285,10 +286,10 @@ class RLEnv(BaseRLAviary):
             obs_drone_rpy_vel_upper_bound = np.array([rpy_vel_high for drone in range(self.NUM_DRONES)])
 
             # Add object observation space
-            obs_obj_lower_bound = np.hstack([np.array([pos_low for obj in range(self.NUM_OBJECTS)])])
-            obs_obj_upper_bound = np.hstack([np.array([pos_high for obj in range(self.NUM_OBJECTS)])])
-            obs_obj_vel_lower_bound = np.hstack([np.array([ball_vel_low for obj in range(self.NUM_OBJECTS)])])
-            obs_obj_vel_upper_bound = np.hstack([np.array([ball_vel_high for obj in range(self.NUM_OBJECTS)])])
+            obs_obj_lower_bound = np.array([pos_low for obj in range(self.NUM_OBJECTS)])
+            obs_obj_upper_bound = np.array([pos_high for obj in range(self.NUM_OBJECTS)])
+            obs_obj_vel_lower_bound = np.array([ball_vel_low for obj in range(self.NUM_OBJECTS)])
+            obs_obj_vel_upper_bound = np.array([ball_vel_high for obj in range(self.NUM_OBJECTS)])
 
             return spaces.Dict({
                 "Drone_position": spaces.Box(low=obs_drone_lower_bound, high=obs_drone_upper_bound, dtype=np.float32),
@@ -323,7 +324,6 @@ class RLEnv(BaseRLAviary):
                 #noise_drone = np.zeros((self.NUM_DRONES, 3))
                 noise_obj = np.zeros((self.NUM_OBJECTS, 3))
 
-            
             drone_pos = np.zeros((self.NUM_DRONES, 3))
             drone_vel = np.zeros((self.NUM_DRONES, 3))
             drone_rpy = np.zeros((self.NUM_DRONES, 3))
@@ -335,19 +335,28 @@ class RLEnv(BaseRLAviary):
                 drone_rpy[i,:] = obs[7:10]
                 drone_rpy_vel[i,:] = obs[13:16]
 
-            obj_pos = np.zeros((self.NUM_OBJECTS,3))
-            for i in range(len(self.ball_list)):
-                obs, _ = pb.getBasePositionAndOrientation(self.ball_list[i], physicsClientId=self.CLIENT)
-                obj_pos[i,:] = obs[0:3] + noise_obj[i,:]
+            obj_pos = np.zeros((self.NUM_OBJECTS, 3))
+            obj_vel = np.zeros((self.NUM_OBJECTS, 3))
+            for i in range(self.NUM_OBJECTS):
+                if i < len(self.ball_list):
+                    obs, _ = pb.getBasePositionAndOrientation(self.ball_list[i], physicsClientId=self.CLIENT)
+                    self.kf.measurementUpdate(obs[0:3]) #+ noise_obj[i, :])
+                    obj_temp = self.kf.getState()
+                    obj_pos[i, :] = obj_temp[0:3, 0]
+                    obj_vel[i, :] = obj_temp[3:6, 0]
+                else:
+                    # No ball present, leave as zeros
+                    obj_pos[i, :] = 0.0
 
-            return {
+            obs_dict = {
                 "Drone_position": drone_pos,
                 "Drone_velocity": drone_vel,
                 "Drone_rpy": drone_rpy,
                 "Drone_rpy_velocity": drone_rpy_vel,
                 "Object_position": obj_pos
+                #"Object_velocity": obj_vel
             }
-
+            return obs_dict
 
         else:
             return super()._computeObs()
@@ -367,7 +376,7 @@ class RLEnv(BaseRLAviary):
         self.vel = np.zeros((self.NUM_DRONES, 3))
         self.ang_vel = np.zeros((self.NUM_DRONES, 3))
 
-        self.getRandomInitialPos()
+        #self.getRandomInitialPos()
 
         pb.resetBasePositionAndOrientation(
             self.DRONE_IDS[drone_id],
@@ -383,14 +392,14 @@ class RLEnv(BaseRLAviary):
 
         self.ctrl[drone_id].reset()
 
-    def addBall(self,position : None|np.ndarray[float] = None,force : None|np.ndarray[float] = None):
+    def addBall(self,position : None|np.ndarray[float] = None,velocity : None|np.ndarray[float] = None):
         # position: where the ball will be added
         # force: the force applied to the ball at the moment of creation
 
         if position is None:
             position = np.zeros(3, dtype=float)  # Default position at the origin
-        if force is None:
-            force = np.zeros(3, dtype=float)  # Default force is zero
+        if velocity is None:
+            velocity = np.zeros(3, dtype=float)  # Default force is zero
         search_path = "/home/alex/Desktop/Exjobb/RL_collision_avoidance/Training/resources"
         pb.setAdditionalSearchPath(search_path)
         
@@ -405,14 +414,11 @@ class RLEnv(BaseRLAviary):
         self.ball_list.append(pb.loadURDF("custom_sphere_small.urdf",
                        basePosition=(position[0], position[1], position[2]),
                        physicsClientId=self.CLIENT))
-        
-        position = [0, 0, 0]  # Relative position (center of mass)
-        pb.applyExternalForce(
-            objectUniqueId=self.ball_list[-1],  # Get the last added ball
-            linkIndex=-1,  # -1 means base/root link
-            forceObj=force,
-            posObj=position,
-            flags=pb.WORLD_FRAME
+
+        pb.resetBaseVelocity(
+            objectUniqueId = self.ball_list[-1],
+            linearVelocity = velocity,
+            physicsClientId = self.CLIENT
         )
     
     def addBallRandom(self):
@@ -422,18 +428,23 @@ class RLEnv(BaseRLAviary):
         pos = self.getRandomPos()
 
         # Calculate force based on the position
-        x_ball = pos[0]
-        y_ball = pos[1]
-        norm = np.linalg.norm([x_ball, y_ball])
-        force_x = -np.random.uniform(self.FORCE_MAG_MIN_XY,self.FORCE_MAG_MAX_XY) * x_ball/norm +  \
-                                                            np.random.uniform(-self.FORCE_VAR,self.FORCE_VAR)
-        force_y = -np.random.uniform(self.FORCE_MAG_MIN_XY,self.FORCE_MAG_MAX_XY) * y_ball/norm + \
-                                                            np.random.uniform(-self.FORCE_VAR,self.FORCE_VAR)
-        force_z = np.random.uniform(self.FORCE_MAG_MIN_Z,self.FORCE_MAG_MAX_Z) + \
-                                                            np.random.uniform(-self.FORCE_VAR,self.FORCE_VAR)
+        x0, y0, z0 = pos
+        target = self.TARGET_POS
+        T = np.random.uniform(0.5,1.5) # Time to reach the target
+
+        # Calculate required velocities
+        vx = (target[0,0] - x0) / T
+        vy = (target[0,1] - y0) / T
+        vz = (target[0,2] - z0 + self.G * T**2 / 2) / T
+
+        vx += np.random.uniform(-self.VELOCITY_VAR, self.VELOCITY_VAR)
+        vy += np.random.uniform(-self.VELOCITY_VAR, self.VELOCITY_VAR)
+        vz += np.random.uniform(-self.VELOCITY_VAR, self.VELOCITY_VAR)
+
+        velocity = np.array([vx, vy, vz]) * (1 + T/13)
 
         # Add the ball with the generated position and force
-        self.addBall(position=pos, force=[force_x, force_y, force_z])
+        self.addBall(position = pos, velocity = velocity)
 
     def getRandomPos(self):
         # Generate a random position
@@ -442,6 +453,7 @@ class RLEnv(BaseRLAviary):
         x_pos = magnitude * math.cos(angle)
         y_pos = magnitude * math.sin(angle)
         z_pos = np.random.uniform(0.75, 1.25)
+        z_pos = 1.0
 
         position = [x_pos, y_pos, z_pos]
         
