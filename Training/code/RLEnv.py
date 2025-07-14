@@ -87,7 +87,8 @@ class RLEnv(BaseRLAviary):
         self.obj_distances = np.zeros((self.NUM_OBJECTS, 1))
 
     def step(self, rel_action):
-        action = self.curr_drone_pos + rel_action
+        # Convert the scaled relative action to a global action
+        action = self.curr_drone_pos + rel_action*self.ACTION_SIZE
         #action = self.TARGET_POS
         obs, reward, terminated, truncated, info = super().step(action)
         # Compute the reward, termination, truncation, and info for one step
@@ -299,7 +300,7 @@ class RLEnv(BaseRLAviary):
             obs_obj_vel_upper_bound = np.array([ball_vel_high for obj in range(self.NUM_OBJECTS)])
 
             return spaces.Dict({
-                "Drone_position": spaces.Box(low=obs_drone_lower_bound, high=obs_drone_upper_bound, dtype=np.float32),
+                #"Drone_position": spaces.Box(low=obs_drone_lower_bound, high=obs_drone_upper_bound, dtype=np.float32),
                 "Drone_velocity": spaces.Box(low=obs_drone_vel_lower_bound, high=obs_drone_vel_upper_bound, dtype=np.float32),
                 "Drone_rpy": spaces.Box(low=obs_drone_rpy_lower_bound, high=obs_drone_rpy_upper_bound, dtype=np.float32),
                 "Drone_rpy_velocity": spaces.Box(low=obs_drone_rpy_vel_lower_bound, high=obs_drone_rpy_vel_upper_bound, dtype=np.float32),
@@ -311,6 +312,7 @@ class RLEnv(BaseRLAviary):
             super()._observationSpace()
 
     def _actionSpace(self):
+        '''
         size = 3
         act_lower_bound = np.array([-self.ACTION_SIZE*np.ones(size)])
         act_lower_bound[0,2] = act_lower_bound[0,2]/10
@@ -322,7 +324,9 @@ class RLEnv(BaseRLAviary):
             self.action_buffer.append(np.zeros((self.NUM_DRONES,size)))
         #
         return spaces.Box(low=act_lower_bound, high=act_upper_bound, dtype=np.float32)
-
+        '''
+        return super()._actionSpace()
+    
     def _computeObs(self):
         if self.OBS_TYPE == ObservationType.KIN and self.ACT_TYPE == ActionType.PID:
             if self.OBS_NOISE:
@@ -366,7 +370,7 @@ class RLEnv(BaseRLAviary):
             
 
             obs_dict = {
-                "Drone_position": drone_pos,
+                #"Drone_position": drone_pos,
                 "Drone_velocity": drone_vel,
                 "Drone_rpy": drone_rpy,
                 "Drone_rpy_velocity": drone_rpy_vel,
