@@ -16,6 +16,7 @@ from stable_baselines3.common.callbacks import (
     StopTrainingOnMaxEpisodes,
     StopTrainingOnRewardThreshold,
 )
+from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.monitor import Monitor
@@ -52,6 +53,8 @@ class Train_PPO():
                                     seed = 0, 
                                     vec_env_cls=SubprocVecEnv)
 
+        # Check environment and outputs warnings
+        check_env(training_env)
         
         eval_env = SubprocVecEnv([
                                     lambda: Monitor(RLEnv(parameters=self.parameters, gui=self.train_gui))
