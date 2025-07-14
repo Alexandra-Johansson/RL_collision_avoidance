@@ -54,6 +54,7 @@ class RLEnv(BaseRLAviary):
         self.VELOCITY_VAR = 0
 
         self.ball_list = []
+        self.collision_detected = False
         
         super().__init__(self.DRONE_MODEL,
                          num_drones,
@@ -87,6 +88,7 @@ class RLEnv(BaseRLAviary):
 
     def step(self, rel_action):
         action = self.curr_drone_pos + rel_action
+        #action = self.TARGET_POS
         obs, reward, terminated, truncated, info = super().step(action)
         # Compute the reward, termination, truncation, and info for one step
 
@@ -126,6 +128,7 @@ class RLEnv(BaseRLAviary):
         self.curr_drone_pos = drone_state_vec[0:3]  # Position
         self.target_distance = np.linalg.norm(self.TARGET_POS[0] - drone_state_vec[0:3])
         self.ang_vel = drone_state_vec[13:16] # Angular velocity
+        self.collision_detected = False
 
         self.addBallRandom()
 
@@ -153,16 +156,14 @@ class RLEnv(BaseRLAviary):
             ball_pos, _ = pb.getBasePositionAndOrientation(self.ball_list[i], physicsClientId=self.CLIENT)
             self.obj_distances[i] = np.linalg.norm(ball_pos[0:3] - self.curr_drone_pos)
 
-        # Check for collisions and compute rewards
-        if any(self.obj_distances < self.CRITICAL_SAFETY_DISTANCE):
-            ret = self.REWARD_COLLISION
-        elif self._getCollision(self.DRONE_IDS[0]):
-            ret = self.REWARD_COLLISION
-            # Negative reward for collision
         # Check if the episode is terminated
-        elif self._computeTerminated():
-            ret = self.REWARD_TERMINATED
-            # Reward for avoiding all obstacles
+        if self._computeTerminated():
+            if self.collision_detected:
+                ret = self.REWARD_COLLISION
+                # Negative reward for collision
+            else:
+                ret = self.REWARD_TERMINATED
+                # Reward for avoiding all obstacles
         # Else calculate the reward based on the states
         else:
             obj_distances_delta = np.sum(prev_obj_distances - self.obj_distances)
@@ -211,6 +212,10 @@ class RLEnv(BaseRLAviary):
         if (self.step_counter/self.PYB_FREQ > self.EPISODE_LEN_SEC):
             Terminated = True
             #print("Time limit reached, episode terminated.")
+        elif any(self.obj_distances < self.CRITICAL_SAFETY_DISTANCE):
+            Terminated = True
+            self.collision_detected = True
+            #print("Collision detected, Terminating episode")
         ''' 
         if self.target_distance < self.TARGET_RADIUS:
             # If the drone is within the target radius, terminate the episode
@@ -231,11 +236,7 @@ class RLEnv(BaseRLAviary):
         drone_id = 0
         drone_state_vec = self._getDroneStateVector(drone_id)
 
-        if (self._getCollision(self.DRONE_IDS[0])):
-            Truncated = True
-            #print("Collision detected, episode truncated.")
-        
-        elif (abs(drone_state_vec[0]) > 5 or
+        if (abs(drone_state_vec[0]) > 5 or
             abs(drone_state_vec[1]) > 5 or
             abs(drone_state_vec[2]) > 5):
             Truncated = True
@@ -353,9 +354,10 @@ class RLEnv(BaseRLAviary):
                     obj_temp = self.kf.getState()
                     obj_pos[i, :] = obj_temp[0:3, 0]
                     obj_vel[i, :] = obj_temp[3:6, 0]
-                else:
-                    # No ball present, leave as zeros
-                    obj_pos[i, :] = 0.0
+
+            for i in range(self.NUM_DRONES):
+                for j in range(self.NUM_OBJECTS):
+                    obj_pos[j, :] = obj_pos[j, :] - drone_pos[i, :]
 
             # Compute target observation
             target_distance = np.zeros((self.NUM_DRONES, 3))
@@ -379,8 +381,15 @@ class RLEnv(BaseRLAviary):
 
     def _computeInfo(self):
         # TODO
-        return {"info": 0,
-                "is_success": self._computeTerminated()}   
+        success = False
+        if self._computeTerminated:
+            if not self.collision_detected:
+                success = True
+
+        info = {"info": 0,
+                "is_success": success}
+        
+        return info  
 
     def reset_drone(self):
         drone_id = 0
