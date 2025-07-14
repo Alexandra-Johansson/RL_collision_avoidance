@@ -1,16 +1,14 @@
 import time
+
 import numpy as np
-
+from data_handling import Txt_file
 from gym_pybullet_drones.utils.utils import sync
-
+from RLEnv import RLEnv
 from stable_baselines3 import PPO
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.monitor import Monitor
 
-from RLEnv import RLEnv
-from data_handling import Txt_file
-
-folder = "Training/results/PPO_training_24.06.2025-10.44.29"  # Path to the folder with the trained model
+folder = "Training/results/PPO_training_2025.07.04-23.29.23"  # Path to the folder with the trained model
 
 param_file = Txt_file(folder)
 parameters = param_file.load_parameters()

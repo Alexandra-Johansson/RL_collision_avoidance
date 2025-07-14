@@ -1,8 +1,6 @@
 import math
 import time
 
-from predictor import KalmanFilter
-
 import numpy as np
 import pybullet as pb
 from gym_pybullet_drones.envs.BaseRLAviary import BaseRLAviary
@@ -12,6 +10,7 @@ from gym_pybullet_drones.utils.enums import (
     Physics,
 )
 from gymnasium import spaces
+from predictor import KalmanFilter
 
 
 class RLEnv(BaseRLAviary):
@@ -173,25 +172,26 @@ class RLEnv(BaseRLAviary):
             ang_vel_delta = np.sum(abs(prev_ang_vel - self.ang_vel))
 
             # Reward based on factors
-            ret += ang_vel_delta*self.REWARD_ANGULAR_VELOCITY_DELTA # Negative reward based on change in velocity
+            #ret += ang_vel_delta*self.REWARD_ANGULAR_VELOCITY_DELTA # Negative reward based on change in velocity
             #ret += -10*np.sum(abs(self.ang_vel))
             #ret += -1000*sum(abs(drone_state_vec[7:8]))
 
             if (self.target_distance <= self.TARGET_RADIUS):
                 # If the drone is within the target radius, give a positive reward
                 ret += self.REWARD_IN_TARGET
-                ret += ((self.REWARD_TARGET_DISTANCE_DELTA * target_distance_delta)/self.CTRL_TIMESTEP)/2
+                #ret += ((self.REWARD_TARGET_DISTANCE_DELTA * target_distance_delta)/self.CTRL_TIMESTEP)/2
             else:
                 # If the drone is outside the target radius, give a negative reward
                 ret += self.REWARD_TARGET_DISTANCE * self.target_distance
-                ret += (self.REWARD_TARGET_DISTANCE_DELTA * target_distance_delta)/self.CTRL_TIMESTEP
+                #ret += (self.REWARD_TARGET_DISTANCE_DELTA * target_distance_delta)/self.CTRL_TIMESTEP
                 # Negative reward for each step outside the target
                 ret += self.REWARD_STEP
             
-            # 2. Negative reward based on if objects are closer or further away
-            if (self.obj_distances < self.AVOIDANCE_RADIUS):
+            # 2. Negative reward based on if the object is moving towards the drone
+            if (obj_distances_delta < 0):
                 # If the object is to close, give a reward based on change in distance
-                ret += self.REWARD_OBJECT_DISTANCE_DELTA * obj_distances_delta
+                #ret += self.REWARD_OBJECT_DISTANCE_DELTA * obj_distances_delta
+                pass
 
         #print(f"Reward: {ret}")
         return float(ret)
@@ -274,6 +274,8 @@ class RLEnv(BaseRLAviary):
             rpy_high = np.array(0.9*np.ones(3))
             rpy_vel_low = np.array([-10, -10, -6])
             rpy_vel_high = np.array([10, 10, 6])
+            target_pos_low = np.array([-5.0, -5.0, -5.0])
+            target_pos_high = np.array([5.0, 5.0, 5.0])
 
             # Add drone observation space
             obs_drone_lower_bound = np.array([pos_low for drone in range(self.NUM_DRONES)])
@@ -284,6 +286,10 @@ class RLEnv(BaseRLAviary):
             obs_drone_rpy_upper_bound = np.array([rpy_high for drone in range(self.NUM_DRONES)])
             obs_drone_rpy_vel_lower_bound = np.array([rpy_vel_low for drone in range(self.NUM_DRONES)])
             obs_drone_rpy_vel_upper_bound = np.array([rpy_vel_high for drone in range(self.NUM_DRONES)])
+
+            # Add target observation space
+            obs_target_lower_bound = np.array([target_pos_low for drone in range(self.NUM_DRONES)])
+            obs_target_upper_bound = np.array([target_pos_high for drone in range(self.NUM_DRONES)])
 
             # Add object observation space
             obs_obj_lower_bound = np.array([pos_low for obj in range(self.NUM_OBJECTS)])
@@ -296,6 +302,7 @@ class RLEnv(BaseRLAviary):
                 "Drone_velocity": spaces.Box(low=obs_drone_vel_lower_bound, high=obs_drone_vel_upper_bound, dtype=np.float32),
                 "Drone_rpy": spaces.Box(low=obs_drone_rpy_lower_bound, high=obs_drone_rpy_upper_bound, dtype=np.float32),
                 "Drone_rpy_velocity": spaces.Box(low=obs_drone_rpy_vel_lower_bound, high=obs_drone_rpy_vel_upper_bound, dtype=np.float32),
+                "Target_distance": spaces.Box(low=obs_target_lower_bound, high=obs_target_upper_bound, dtype=np.float32),
                 "Object_position": spaces.Box(low=obs_obj_lower_bound, high=obs_obj_upper_bound, dtype=np.float32)})
                 #"Object_velocity": spaces.Box(low=obs_obj_vel_lower_bound, high=obs_obj_vel_upper_bound, dtype=np.float32)})
     
@@ -324,6 +331,7 @@ class RLEnv(BaseRLAviary):
                 #noise_drone = np.zeros((self.NUM_DRONES, 3))
                 noise_obj = np.zeros((self.NUM_OBJECTS, 3))
 
+            # Compute drone observations
             drone_pos = np.zeros((self.NUM_DRONES, 3))
             drone_vel = np.zeros((self.NUM_DRONES, 3))
             drone_rpy = np.zeros((self.NUM_DRONES, 3))
@@ -335,6 +343,7 @@ class RLEnv(BaseRLAviary):
                 drone_rpy[i,:] = obs[7:10]
                 drone_rpy_vel[i,:] = obs[13:16]
 
+            # Compute object observations
             obj_pos = np.zeros((self.NUM_OBJECTS, 3))
             obj_vel = np.zeros((self.NUM_OBJECTS, 3))
             for i in range(self.NUM_OBJECTS):
@@ -348,11 +357,18 @@ class RLEnv(BaseRLAviary):
                     # No ball present, leave as zeros
                     obj_pos[i, :] = 0.0
 
+            # Compute target observation
+            target_distance = np.zeros((self.NUM_DRONES, 3))
+            for i in range(self.NUM_DRONES):
+                target_distance[i,:] = self.TARGET_POS - drone_pos[i,:]
+            
+
             obs_dict = {
                 "Drone_position": drone_pos,
                 "Drone_velocity": drone_vel,
                 "Drone_rpy": drone_rpy,
                 "Drone_rpy_velocity": drone_rpy_vel,
+                "Target_distance": target_distance,
                 "Object_position": obj_pos
                 #"Object_velocity": obj_vel
             }
@@ -400,7 +416,7 @@ class RLEnv(BaseRLAviary):
             position = np.zeros(3, dtype=float)  # Default position at the origin
         if velocity is None:
             velocity = np.zeros(3, dtype=float)  # Default force is zero
-        search_path = "/home/alex/Desktop/Exjobb/RL_collision_avoidance/Training/resources"
+        search_path = "Training/resources"
         pb.setAdditionalSearchPath(search_path)
         
         while (len(self.ball_list) >= self.NUM_OBJECTS):

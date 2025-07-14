@@ -1,18 +1,15 @@
 import math
 import os
 import time
-from datetime import datetime
 import traceback
+from datetime import datetime
 
 import numpy as np
-from data_handling import Txt_file, Plot
+from data_handling import Plot, Txt_file
 from gym_pybullet_drones.utils.enums import ActionType, ObservationType
 from gym_pybullet_drones.utils.Logger import Logger
 from gym_pybullet_drones.utils.utils import sync
-
 from RLEnv import RLEnv
-from data_handling import Plot
-
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import (
     EvalCallback,
@@ -20,9 +17,9 @@ from stable_baselines3.common.callbacks import (
     StopTrainingOnRewardThreshold,
 )
 from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 
 class Train_PPO():
@@ -96,7 +93,7 @@ class Train_PPO():
         except Exception as e:
             print("Exception occured: ", e)
             traceback.print_exc()
-            i = 1
+            input("Error occured! Press enter to continue...")
         time_end = time.time()
 
         model.save(self.filename+'/final_model.zip')

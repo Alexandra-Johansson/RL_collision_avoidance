@@ -11,42 +11,46 @@ parameters = {
     'action_size': 0.2,
     'eval_freq': 10,  # Evaluate every 1 episodes
     'target_pos': np.array([[.0, .0, 1.0]]),
-    'target_radius': 0.05,  # Radius of the target sphere
+    'target_radius': 0.1,  # Radius of the target sphere
     'avoidance_radius': 1.,  # Radius of the avoidance sphere
     'critical_safety_distance': 0.25,
     'episode_length': 4,  # seconds
     'eval_episodes' : 1,  # Number of episodes to evaluate
-    'learning_rate': 3e-3,
+    'learning_rate': 4e-4,
     'batch_size': 512, # Should be a divisor of n_steps*n_envs
     'num_steps': 2048, # Number of steps before updating policy, actual update is n_steps*n_envs
     'nr_of_env': 1,  # Number of environments to train in parallel, Multiple environments is not currently implemented correctly
-    'num_epochs': 20,
+    'num_epochs': 10,
     'obs_noise': True,  # Add noise to the observations
     'obs_noise_std': 0.05,  # Standard deviation of the noise
     'kf_process_noise': 1e-4,
     'kf_measurement_noise': 1e-2,
-    'reward_collision': -5000.0,
+    'reward_collision': -50000.0,
     'reward_terminated': 1000.0,
-    'reward_target_distance': -100.0,
+    'reward_target_distance': -1000.0,
     'reward_target_distance_delta': 200.0, # Positive for rewarding moving towards target
     'reward_angular_velocity_delta': -5.0, # Negative reward for changing angle
     'reward_object_distance_delta': 10.0, # Positive for rewarding moving away from object
-    'reward_step': -50,
+    'reward_step': -100,
     'reward_in_target': 100.0,
     'target_reward': 150000.0,  # Reward to stop training
-    'total_timesteps': int(5*1e5),  # Total timesteps to train
+    'total_timesteps': int(3*1e6),  # Total timesteps to train
 }
 
 if __name__ == "__main__":
 
-    test_param_nr_of_env = [1]
+    test_param_ctrl_freq = [10,60]
+    test_param_action_size = [0.1, 0.3]
     time_taken = []
 
-    for nr_of_env in test_param_nr_of_env:
-        parameters['nr_of_env'] = nr_of_env
+    for ctrl_freq in test_param_ctrl_freq:
+        parameters['ctrl_freq'] = ctrl_freq
 
-        PPO = Train_PPO(parameters=parameters, train_gui=False)
+        for action_size in test_param_action_size:
+            parameters['action_size'] = action_size
 
-        time_taken.append(PPO.train())
+            PPO = Train_PPO(parameters=parameters, train_gui=False)
+
+            time_taken.append(PPO.train())
 
     print(time_taken)
