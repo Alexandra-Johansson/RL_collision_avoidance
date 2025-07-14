@@ -46,15 +46,16 @@ class Train_PPO():
         Param.save_parameters(self.parameters)
 
     def train(self):
+        # Check environment and outputs warnings
+        test_env = RLEnv(parameters=self.parameters)
+        check_env(test_env)
+
         # Create the environment
         training_env = make_vec_env(RLEnv, 
                                     env_kwargs = dict(parameters = self.parameters), 
                                     n_envs = self.parameters['nr_of_env'],
                                     seed = 0, 
                                     vec_env_cls=SubprocVecEnv)
-
-        # Check environment and outputs warnings
-        check_env(training_env)
         
         eval_env = SubprocVecEnv([
                                     lambda: Monitor(RLEnv(parameters=self.parameters, gui=self.train_gui))
