@@ -46,6 +46,7 @@ class RLEnv(BaseRLAviary):
         self.REWARD_COLLISION = parameters['reward_collision']
         self.REWARD_SUCESS = parameters['reward_sucess']
         self.REWARD_END_OUTSIDE_TARGET = parameters['reward_end_outside_target']
+        self.REWARD_TRUNCATION = parameters['reward_truncation']
         self.REWARD_TARGET_DISTANCE = parameters['reward_target_distance']
         self.REWARD_TARGET_DISTANCE_DELTA = parameters['reward_target_distance_delta']
         self.REWARD_ANGULAR_VELOCITY_DELTA = parameters['reward_angular_velocity_delta']
@@ -178,6 +179,9 @@ class RLEnv(BaseRLAviary):
                     ret = self.REWARD_SUCESS
                 else:
                     ret = self.REWARD_END_OUTSIDE_TARGET
+            else:
+                # Negative reward for truncation
+                ret = self.REWARD_TRUNCATION
         # Else calculate the reward based on the states
         else:
             obj_distances_delta = np.sum(prev_obj_distances - self.obj_distances)
@@ -249,6 +253,7 @@ class RLEnv(BaseRLAviary):
 
     def _computeTruncated(self):
         Truncated = False
+        self.truncation_reason = None
 
         drone_id = 0
         drone_state_vec = self._getDroneStateVector(drone_id)
@@ -256,17 +261,22 @@ class RLEnv(BaseRLAviary):
         if (self.step_counter/self.PYB_FREQ > self.EPISODE_LEN_SEC):
             Truncated = True
             self.time_limit_reached = True
+            self.truncation_reason = "time_limit"
             #print("Time limit reached, episode truncated.")
         # Check if the drone is out of bounds
         elif (abs(drone_state_vec[0]) > 5 or
             abs(drone_state_vec[1]) > 5 or
             abs(drone_state_vec[2]) > 5):
             Truncated = True
+            self.time_limit_reached = False
+            self.truncation_reason = "out_of_bounds"
             #print("Drone position out of bounds, episode truncated.")
         # Check if the drone orientation is out of bounds
         elif (abs(drone_state_vec[7]) > .9 or
                 abs(drone_state_vec[8]) > .9):
             Truncated = True
+            self.time_limit_reached = False
+            self.truncation_reason = "orientation"
             #print("Drone orientation out of bounds, episode truncated.")
 
         '''
@@ -429,7 +439,7 @@ class RLEnv(BaseRLAviary):
 
     def _computeInfo(self):
         success = False
-        if self.time_limit_reached:
+        if getattr(self, "truncation_reason", None) == "time_limit":
             if (self.target_distance <= self.TARGET_RADIUS):
                 success = True
 
