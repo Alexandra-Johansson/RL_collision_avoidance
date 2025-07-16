@@ -1,6 +1,8 @@
 import math
 import time
 
+import os
+
 import numpy as np
 import pybullet as pb
 from gym_pybullet_drones.envs.BaseRLAviary import BaseRLAviary
@@ -184,7 +186,7 @@ class RLEnv(BaseRLAviary):
                 #ret += ((self.REWARD_TARGET_DISTANCE_DELTA * target_distance_delta)/self.CTRL_TIMESTEP)/2
             else:
                 # If the drone is outside the target radius, give a negative reward
-                ret += self.REWARD_TARGET_DISTANCE * self.target_distance
+                #ret += self.REWARD_TARGET_DISTANCE * self.target_distance
                 #ret += (self.REWARD_TARGET_DISTANCE_DELTA * target_distance_delta)/self.CTRL_TIMESTEP
                 # Negative reward for each step outside the target
                 ret += self.REWARD_STEP
@@ -278,6 +280,8 @@ class RLEnv(BaseRLAviary):
             rpy_vel_high = np.array([10, 10, 6])
             target_pos_low = np.array([-5.0, -5.0, -5.0])
             target_pos_high = np.array([5.0, 5.0, 5.0])
+            timestep_low = np.array([0])
+            timestep_high = np.array([self.EPISODE_LEN_SEC*self.PYB_FREQ + 1])
 
             # Add drone observation space
             #obs_drone_lower_bound = np.array([pos_low for drone in range(self.NUM_DRONES)])
@@ -292,6 +296,10 @@ class RLEnv(BaseRLAviary):
             # Add target observation space
             obs_target_lower_bound = np.array([target_pos_low for drone in range(self.NUM_DRONES)])
             obs_target_upper_bound = np.array([target_pos_high for drone in range(self.NUM_DRONES)])
+
+            # Add timestep observation space
+            timestep_lower_bound = np.array([timestep_low])
+            timestep_upper_bound = np.array([timestep_high])
 
             # Add object observation space
             obs_obj_lower_bound = np.array([pos_low for obj in range(self.NUM_OBJECTS)])
@@ -315,6 +323,7 @@ class RLEnv(BaseRLAviary):
                 "Drone_rpy": spaces.Box(low=obs_drone_rpy_lower_bound.flatten(), high=obs_drone_rpy_upper_bound.flatten(), dtype=np.float64),
                 "Drone_rpy_velocity": spaces.Box(low=obs_drone_rpy_vel_lower_bound.flatten(), high=obs_drone_rpy_vel_upper_bound.flatten(), dtype=np.float64),
                 "Target_distance": spaces.Box(low=obs_target_lower_bound.flatten(), high=obs_target_upper_bound.flatten(), dtype=np.float64),
+                "Timestep": spaces.Box(low=timestep_lower_bound.flatten(), high=timestep_upper_bound.flatten(), dtype=np.float64),
                 "Object_position": spaces.Box(low=obs_obj_lower_bound.flatten(), high=obs_obj_upper_bound.flatten(), dtype=np.float64)})
                 #"Object_velocity": spaces.Box(low=obs_obj_vel_lower_bound, high=obs_obj_vel_upper_bound, dtype=np.float32)})
 
@@ -378,6 +387,9 @@ class RLEnv(BaseRLAviary):
             target_distance = np.zeros((self.NUM_DRONES, 3))
             for i in range(self.NUM_DRONES):
                 target_distance[i,:] = self.TARGET_POS - drone_pos[i,:]
+
+            # Compute timestep observation
+            timestep = np.array([self.step_counter])
             
 
             obs_dict = {
@@ -386,6 +398,7 @@ class RLEnv(BaseRLAviary):
                 "Drone_rpy": drone_rpy.flatten(),
                 "Drone_rpy_velocity": drone_rpy_vel.flatten(),
                 "Target_distance": target_distance.flatten(),
+                "Timestep": timestep.flatten(),
                 "Object_position": obj_pos.flatten()
                 #"Object_velocity": obj_vel
             }
@@ -440,7 +453,7 @@ class RLEnv(BaseRLAviary):
             position = np.zeros(3, dtype=float)  # Default position at the origin
         if velocity is None:
             velocity = np.zeros(3, dtype=float)  # Default force is zero
-        search_path = "Training/resources"
+        search_path = os.getcwd() + "/Training/resources"
         pb.setAdditionalSearchPath(search_path)
         
         while (len(self.ball_list) >= self.NUM_OBJECTS):
@@ -451,6 +464,8 @@ class RLEnv(BaseRLAviary):
             except Exception:
                 pass
                 
+        print(os.getcwd())
+
         self.ball_list.append(pb.loadURDF("custom_sphere_small.urdf",
                        basePosition=(position[0], position[1], position[2]),
                        physicsClientId=self.CLIENT))
