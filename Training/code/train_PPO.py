@@ -20,7 +20,7 @@ from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNormalize
 
 
 class Train_PPO():
@@ -57,11 +57,15 @@ class Train_PPO():
                                     seed = 0, 
                                     vec_env_cls=SubprocVecEnv)
         
+        training_env = VecNormalize(training_env, norm_obs=True, norm_reward=False, clip_obs=10.0)
+        
         eval_env = SubprocVecEnv([
                                     lambda: Monitor(RLEnv(parameters=self.parameters, gui=self.train_gui))
                                     for _ in range(self.parameters['eval_episodes'])
                                 ])
-        #eval_env = DummyVecEnv([lambda: Monitor(RLEnv(parameters=self.parameters, gui=self.train_gui))])
+        
+        eval_env = VecNormalize(eval_env, norm_obs=True, norm_reward=False, clip_obs=10.0)
+        eval_env.obs_rms = training_env.obs_rms  # Use the same normalization as the training environment
 
         print("[INFO] Action space: ", training_env.action_space)
         print("[INFO] Observation space: ", training_env.observation_space)
