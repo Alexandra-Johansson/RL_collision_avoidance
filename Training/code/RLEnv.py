@@ -44,7 +44,8 @@ class RLEnv(BaseRLAviary):
         self.MEASUREMENT_NOISE = parameters['kf_measurement_noise']
 
         self.REWARD_COLLISION = parameters['reward_collision']
-        self.REWARD_TERMINATED = parameters['reward_terminated']
+        self.REWARD_SUCESS = parameters['reward_sucess']
+        self.REWARD_END_OUTSIDE_TARGET = parameters['reward_end_outside_target']
         self.REWARD_TARGET_DISTANCE = parameters['reward_target_distance']
         self.REWARD_TARGET_DISTANCE_DELTA = parameters['reward_target_distance_delta']
         self.REWARD_ANGULAR_VELOCITY_DELTA = parameters['reward_angular_velocity_delta']
@@ -106,7 +107,7 @@ class RLEnv(BaseRLAviary):
         if self.GUI:
             time.sleep(self.CTRL_TIMESTEP)
 
-        if self._getCollision(self.DRONE_IDS[0]):
+        if terminated or truncated:
             reward = self._computeReward()
 
             self.reset_drone()
@@ -171,7 +172,12 @@ class RLEnv(BaseRLAviary):
         if self._computeTerminated():
             ret = self.REWARD_COLLISION
             # Negative reward for collision
-
+        elif self._computeTruncated():
+            if self.time_limit_reached:
+                if (self.target_distance <= self.TARGET_RADIUS):
+                    ret = self.REWARD_SUCESS
+                else:
+                    ret = self.REWARD_END_OUTSIDE_TARGET
         # Else calculate the reward based on the states
         else:
             obj_distances_delta = np.sum(prev_obj_distances - self.obj_distances)
@@ -187,14 +193,16 @@ class RLEnv(BaseRLAviary):
 
             if (self.target_distance <= self.TARGET_RADIUS):
                 # If the drone is within the target radius, give a positive reward
-                ret += self.REWARD_IN_TARGET
+                #ret += self.REWARD_IN_TARGET
                 #ret += ((self.REWARD_TARGET_DISTANCE_DELTA * target_distance_delta)/self.CTRL_TIMESTEP)/2
+                pass
             else:
                 # If the drone is outside the target radius, give a negative reward
                 #ret += self.REWARD_TARGET_DISTANCE * self.target_distance
                 #ret += (self.REWARD_TARGET_DISTANCE_DELTA * target_distance_delta)/self.CTRL_TIMESTEP
                 # Negative reward for each step outside the target
-                ret += self.REWARD_STEP
+                #ret += self.REWARD_STEP
+                pass
             
             # 2. Negative reward based on if the object is moving towards the drone
             if (obj_distances_delta < 0):
@@ -420,10 +428,10 @@ class RLEnv(BaseRLAviary):
             return super()._computeObs()
 
     def _computeInfo(self):
-        # TODO
         success = False
         if self.time_limit_reached:
-            success = True
+            if (self.target_distance <= self.TARGET_RADIUS):
+                success = True
 
         info = {"is_success": success}
         
