@@ -32,6 +32,7 @@ class RLEnv(BaseRLAviary):
         self.INITIAL_XYZS = parameters['initial_xyzs']
         self.CTRL_FREQ = parameters['ctrl_freq']
         self.PYB_FREQ = parameters['pyb_freq']
+        self.EPISODE_LEN = parameters['episode_length']
         self.ACTION_SIZE = parameters['action_size']
         self.TARGET_POS = parameters['target_pos']
         self.TARGET_RADIUS = parameters['target_radius']
@@ -56,7 +57,7 @@ class RLEnv(BaseRLAviary):
         self.VELOCITY_VAR = 0
 
         self.ball_list = []
-        self.collision_detected = False
+        self.time_limit_reached = False
         
         super().__init__(self.DRONE_MODEL,
                          num_drones,
@@ -93,6 +94,13 @@ class RLEnv(BaseRLAviary):
         action = self.curr_drone_pos + rel_action*self.ACTION_SIZE
         #action = self.TARGET_POS
         obs, reward, terminated, truncated, info = super().step(action)
+
+        '''
+        self.prev_action = action
+        print("Previous action: ", self.prev_action)
+        print("Current drone position: ", self.curr_drone_pos)
+        print("Error in position",self.prev_action - self.curr_drone_pos)
+        '''
         # Compute the reward, termination, truncation, and info for one step
 
         if self.GUI:
@@ -131,7 +139,7 @@ class RLEnv(BaseRLAviary):
         self.curr_drone_pos = drone_state_vec[0:3]  # Position
         self.target_distance = np.linalg.norm(self.TARGET_POS[0] - drone_state_vec[0:3])
         self.ang_vel = drone_state_vec[13:16] # Angular velocity
-        self.collision_detected = False
+        self.time_limit_reached = False
 
         self.addBallRandom()
 
@@ -161,12 +169,9 @@ class RLEnv(BaseRLAviary):
 
         # Check if the episode is terminated
         if self._computeTerminated():
-            if self.collision_detected:
-                ret = self.REWARD_COLLISION
-                # Negative reward for collision
-            else:
-                ret = self.REWARD_TERMINATED
-                # Reward for avoiding all obstacles
+            ret = self.REWARD_COLLISION
+            # Negative reward for collision
+
         # Else calculate the reward based on the states
         else:
             obj_distances_delta = np.sum(prev_obj_distances - self.obj_distances)
@@ -212,12 +217,13 @@ class RLEnv(BaseRLAviary):
                 # If a ball is in the air don't terminate
                 return Terminated
         '''
+        '''
         if (self.step_counter/self.PYB_FREQ > self.EPISODE_LEN_SEC):
             Terminated = True
             #print("Time limit reached, episode terminated.")
-        elif any(self.obj_distances < self.CRITICAL_SAFETY_DISTANCE):
+        '''
+        if any(self.obj_distances < self.CRITICAL_SAFETY_DISTANCE):
             Terminated = True
-            self.collision_detected = True
             #print("Collision detected, Terminating episode")
         ''' 
         if self.target_distance < self.TARGET_RADIUS:
@@ -239,12 +245,17 @@ class RLEnv(BaseRLAviary):
         drone_id = 0
         drone_state_vec = self._getDroneStateVector(drone_id)
 
-        if (abs(drone_state_vec[0]) > 5 or
+        if (self.step_counter/self.PYB_FREQ > self.EPISODE_LEN_SEC):
+            Truncated = True
+            self.time_limit_reached = True
+            #print("Time limit reached, episode truncated.")
+        # Check if the drone is out of bounds
+        elif (abs(drone_state_vec[0]) > 5 or
             abs(drone_state_vec[1]) > 5 or
             abs(drone_state_vec[2]) > 5):
             Truncated = True
             #print("Drone position out of bounds, episode truncated.")
-
+        # Check if the drone orientation is out of bounds
         elif (abs(drone_state_vec[7]) > .9 or
                 abs(drone_state_vec[8]) > .9):
             Truncated = True
@@ -261,7 +272,9 @@ class RLEnv(BaseRLAviary):
 
         constact_points = pb.getContactPoints(obj, physicsClientId=self.CLIENT)
 
-        if len(constact_points) > 0:
+        if any(self.obj_distances < self.CRITICAL_SAFETY_DISTANCE):
+            return True
+        elif len(constact_points) > 0:
             return True
         else:
             return False
@@ -281,7 +294,7 @@ class RLEnv(BaseRLAviary):
             target_pos_low = np.array([-5.0, -5.0, -5.0])
             target_pos_high = np.array([5.0, 5.0, 5.0])
             timestep_low = np.array([0])
-            timestep_high = np.array([self.EPISODE_LEN_SEC*self.PYB_FREQ + 1])
+            timestep_high = np.array([self.EPISODE_LEN*self.PYB_FREQ + 1])
 
             # Add drone observation space
             #obs_drone_lower_bound = np.array([pos_low for drone in range(self.NUM_DRONES)])
@@ -327,7 +340,6 @@ class RLEnv(BaseRLAviary):
                 "Object_position": spaces.Box(low=obs_obj_lower_bound.flatten(), high=obs_obj_upper_bound.flatten(), dtype=np.float64)})
                 #"Object_velocity": spaces.Box(low=obs_obj_vel_lower_bound, high=obs_obj_vel_upper_bound, dtype=np.float32)})
 
-    
         else:
             super()._observationSpace()
 
@@ -410,12 +422,10 @@ class RLEnv(BaseRLAviary):
     def _computeInfo(self):
         # TODO
         success = False
-        if self._computeTerminated:
-            if not self.collision_detected:
-                success = True
+        if self.time_limit_reached:
+            success = True
 
-        info = {"info": 0,
-                "is_success": success}
+        info = {"is_success": success}
         
         return info  
 
