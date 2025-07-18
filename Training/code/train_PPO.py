@@ -21,18 +21,57 @@ from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNormalize
+from stable_baselines3.common.callbacks import BaseCallback, CallbackList
 
+class CustomTensorboardCallback(BaseCallback):
+    def __init__(self, verbose=0):
+        super().__init__(verbose)
+        self.episode_infos = []
 
+    def _on_step(self) -> bool:
+        # Check if an episode ended
+        infos = self.locals.get("infos", [])
+        dones = self.locals.get("dones", [])
+        for info, done in zip(infos,dones):
+            if done and info is not None:
+                self.episode_infos.append(info)
+        return True
+
+    def _on_rollout_end(self):
+        # Log all episode infos collected during the rollout
+        for info in self.episode_infos:
+            # Log only at episode end
+            if info is not None and "min_object_distance" in info:
+                self.logger.record("custom/mean_min_object_distance", info["min_object_distance"])
+
+            if info is not None and "max_target_distance" in info:
+                self.logger.record("custom/mean_max_target_distance", info["max_target_distance"])
+
+            if info is not None and "out_of_bounds" in info:
+                self.logger.record("custom/mean_out_of_bounds", np.mean(int(info["out_of_bounds"])))
+
+            if info is not None and "orientation_out_of_bounds" in info:
+                self.logger.record("custom/mean_orientation_out_of_bounds", np.mean(int(info["orientation_out_of_bounds"])))
+
+            if info is not None and "time_limit_reached" in info:
+                self.logger.record("custom/mean_time_limit_reached", np.mean(int(info["time_limit_reached"])))
+
+            if info is not None and "obj_collision" in info:
+                self.logger.record("custom/mean_obj_collision", np.mean(int(info["obj_collision"])))
+
+            if info is not None and "contact_collision" in info:
+                self.logger.record("custom/mean_contact_collision", np.mean(int(info["contact_collision"])))
+
+        return True
+    
 class Train_PPO():
-    def __init__(self, parameters, train_gui : bool = False):
+    def __init__(self, parameters):
         self.parameters = parameters
 
         if (self.parameters['num_steps']*self.parameters['nr_of_env'] % self.parameters['batch_size']):
             raise Exception("N_steps*n_envs not divisiable by batch_size")
 
-        self.eval_freq = self.parameters['eval_freq']*self.parameters['num_steps']*self.parameters['nr_of_env']
-
-        self.train_gui = train_gui
+        self.eval_freq = self.parameters['eval_freq']*self.parameters['num_steps']
 
         self.output_folder = 'Training/results'
 
@@ -47,6 +86,8 @@ class Train_PPO():
 
     def train(self):
         # Check environment and outputs warnings
+        test_parameters = self.parameters.copy()
+        test_parameters['gui'] = False  # Disable GUI for environment check
         test_env = RLEnv(parameters=self.parameters)
         check_env(test_env)
 
@@ -59,8 +100,9 @@ class Train_PPO():
         
         training_env = VecNormalize(training_env, norm_obs=True, norm_reward=False, clip_obs=10.0)
         
+        self.parameters['gui'] = False
         eval_env = SubprocVecEnv([
-                                    lambda: Monitor(RLEnv(parameters=self.parameters, gui=self.train_gui))
+                                    lambda: Monitor(RLEnv(parameters=self.parameters))
                                     for _ in range(self.parameters['eval_episodes'])
                                 ])
         
@@ -90,12 +132,14 @@ class Train_PPO():
                                      eval_freq = self.eval_freq,
                                      deterministic = True)
 
+        callback_list = CallbackList([eval_callback, CustomTensorboardCallback()])
+
         self.plot.tensorboard()
 
         time_start = time.time()
         try:
             model.learn(total_timesteps=self.parameters['total_timesteps'],
-                        callback=eval_callback,
+                        callback=callback_list,
                         log_interval = 1,
                         progress_bar = True)
         except Exception as e:
