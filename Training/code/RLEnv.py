@@ -48,7 +48,9 @@ class RLEnv(BaseRLAviary):
         self.REWARD_TRUNCATION = parameters['reward_truncation']
         self.REWARD_TARGET_DISTANCE = parameters['reward_target_distance']
         self.REWARD_TARGET_DISTANCE_DELTA = parameters['reward_target_distance_delta']
+        self.REWARD_RPY = parameters['reward_rpy']
         self.REWARD_ANGULAR_VELOCITY_DELTA = parameters['reward_angular_velocity_delta']
+        self.REWARD_OBJECT_DISTANCE = parameters['reward_object_distance']
         self.REWARD_OBJECT_DISTANCE_DELTA = parameters['reward_object_distance_delta']
         self.REWARD_STEP = parameters['reward_step']
         self.REWARD_IN_TARGET = parameters['reward_in_target']
@@ -88,9 +90,11 @@ class RLEnv(BaseRLAviary):
         drone_state_vec = self._getDroneStateVector(drone_id)
 
         self.curr_drone_pos = drone_state_vec[0:3]  # Position
+        self.curr_drone_rpy = drone_state_vec[7:10]  # Roll, Pitch, Yaw
         self.target_distance = np.linalg.norm(self.TARGET_POS[0] - drone_state_vec[0:3])
         self.ang_vel = drone_state_vec[13:16]  # Angular velocity
         self.obj_distances = np.zeros((self.NUM_OBJECTS, 1))
+        self.prev_obj_pos = np.zeros((self.NUM_OBJECTS, 3))  # Previous object positions
 
     def step(self, rel_action):
         # Convert the scaled relative action to a global action
@@ -100,6 +104,7 @@ class RLEnv(BaseRLAviary):
 
         self.min_obj_distance = min(self.min_obj_distance, np.linalg.norm(obs["Object_position"]))
         self.max_target_distance = max(self.max_target_distance, np.linalg.norm(obs["Target_distance"]))
+        self.final_drone_alt = self.curr_drone_pos[2]
 
         '''
         self.prev_action = action
@@ -150,6 +155,7 @@ class RLEnv(BaseRLAviary):
 
         self.min_obj_distance = np.inf
         self.max_target_distance = 0.0
+        self.final_drone_alt = np.nan
 
         self.addBallRandom()
 
@@ -163,6 +169,7 @@ class RLEnv(BaseRLAviary):
         drone_state_vec = self._getDroneStateVector(drone_id)
 
         self.curr_drone_pos = drone_state_vec[0:3]
+        self.curr_drone_rpy = drone_state_vec[7:10]  # Roll, Pitch, Yaw 
 
         prev_ang_vel = np.copy(self.ang_vel)
         self.ang_vel = drone_state_vec[13:16]
@@ -202,6 +209,7 @@ class RLEnv(BaseRLAviary):
             #ret += ang_vel_delta*self.REWARD_ANGULAR_VELOCITY_DELTA # Negative reward based on change in velocity
             #ret += -10*np.sum(abs(self.ang_vel))
             #ret += -1000*sum(abs(drone_state_vec[7:8]))
+            ret += self.REWARD_RPY * (self.curr_drone_rpy[0]**2 + self.curr_drone_rpy[1]**2)
 
             if (self.target_distance <= self.TARGET_RADIUS):
                 # If the drone is within the target radius, give a positive reward
@@ -216,12 +224,17 @@ class RLEnv(BaseRLAviary):
                 #ret += self.REWARD_STEP
                 pass
             
-            if (any(self.obj_distances < self.AVOIDANCE_RADIUS))
+            if (any(self.obj_distances < self.AVOIDANCE_RADIUS)):
+                ret += self.REWARD_OBJECT_DISTANCE / np.sum(self.obj_distances)
+                pass
 
             # 2. Negative reward based on if the object is moving towards the drone
             if (obj_distances_delta < 0):
                 # If the object is to close, give a reward based on change in distance
                 ret += self.REWARD_OBJECT_DISTANCE_DELTA * obj_distances_delta
+                pass
+
+            if ret > 1:
                 pass
 
         #print(f"Reward: {ret}")
@@ -371,7 +384,8 @@ class RLEnv(BaseRLAviary):
                 "Drone_altitude": spaces.Box(low=obs_altitude_lower_bound.flatten(), high=obs_altitude_upper_bound.flatten(), dtype=np.float64),
                 "Target_distance": spaces.Box(low=obs_target_lower_bound.flatten(), high=obs_target_upper_bound.flatten(), dtype=np.float64),
                 "Timestep": spaces.Box(low=timestep_lower_bound.flatten(), high=timestep_upper_bound.flatten(), dtype=np.float64),
-                "Object_position": spaces.Box(low=obs_obj_lower_bound.flatten(), high=obs_obj_upper_bound.flatten(), dtype=np.float64)})
+                "Object_position": spaces.Box(low=obs_obj_lower_bound.flatten(), high=obs_obj_upper_bound.flatten(), dtype=np.float64),
+                "Previous_object_position": spaces.Box(low=obs_obj_lower_bound.flatten(), high=obs_obj_upper_bound.flatten(), dtype=np.float64)})
                 #"Object_velocity": spaces.Box(low=obs_obj_vel_lower_bound, high=obs_obj_vel_upper_bound, dtype=np.float32)})
 
         else:
@@ -440,7 +454,6 @@ class RLEnv(BaseRLAviary):
             # Compute timestep observation
             timestep = np.array([self.step_counter])
             
-
             obs_dict = {
                 #"Drone_position": drone_pos,
                 "Drone_velocity": drone_vel.flatten(),
@@ -449,9 +462,15 @@ class RLEnv(BaseRLAviary):
                 "Drone_altitude": drone_altitude.flatten(),
                 "Target_distance": target_distance.flatten(),
                 "Timestep": timestep.flatten(),
-                "Object_position": obj_pos.flatten()
+                "Object_position": obj_pos.flatten(),
+                "Previous_object_position": self.prev_obj_pos.flatten()
                 #"Object_velocity": obj_vel
             }
+
+            # Store current object positions for next step
+            for i in range(self.NUM_OBJECTS):
+                self.prev_obj_pos[i, :] = obj_pos[i, :]
+
             return obs_dict
 
         else:
@@ -469,6 +488,8 @@ class RLEnv(BaseRLAviary):
         info = {"is_success": success,
                 "min_object_distance": getattr(self, "min_obj_distance" ,np.nan),
                 "max_target_distance": getattr(self, "max_target_distance", np.nan),
+                "final_drone_altitude": getattr(self, "final_drone_alt", np.nan), # TODO: Can just send current alt
+                "final_target_distance": self.target_distance,
                 "out_of_bounds": self.truncation_reason == "out_of_bounds",
                 "orientation_out_of_bounds": self.truncation_reason == "orientation",
                 "time_limit_reached": self.time_limit_reached,
