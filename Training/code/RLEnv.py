@@ -1,7 +1,6 @@
 import math
-import time
-
 import os
+import time
 
 import numpy as np
 import pybullet as pb
@@ -206,21 +205,23 @@ class RLEnv(BaseRLAviary):
 
             if (self.target_distance <= self.TARGET_RADIUS):
                 # If the drone is within the target radius, give a positive reward
-                #ret += self.REWARD_IN_TARGET
+                ret += self.REWARD_IN_TARGET
                 #ret += ((self.REWARD_TARGET_DISTANCE_DELTA * target_distance_delta)/self.CTRL_TIMESTEP)/2
                 pass
             else:
                 # If the drone is outside the target radius, give a negative reward
-                #ret += self.REWARD_TARGET_DISTANCE * self.target_distance
+                ret += self.REWARD_TARGET_DISTANCE * self.target_distance
                 #ret += (self.REWARD_TARGET_DISTANCE_DELTA * target_distance_delta)/self.CTRL_TIMESTEP
                 # Negative reward for each step outside the target
                 #ret += self.REWARD_STEP
                 pass
             
+            if (any(self.obj_distances < self.AVOIDANCE_RADIUS))
+
             # 2. Negative reward based on if the object is moving towards the drone
             if (obj_distances_delta < 0):
                 # If the object is to close, give a reward based on change in distance
-                #ret += self.REWARD_OBJECT_DISTANCE_DELTA * obj_distances_delta
+                ret += self.REWARD_OBJECT_DISTANCE_DELTA * obj_distances_delta
                 pass
 
         #print(f"Reward: {ret}")
