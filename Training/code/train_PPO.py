@@ -39,28 +39,86 @@ class CustomTensorboardCallback(BaseCallback):
 
     def _on_rollout_end(self):
         # Log all episode infos collected during the rollout
-        for info in self.episode_infos:
-            # Log only at episode end
-            if info is not None and "min_object_distance" in info:
-                self.logger.record("custom/mean_min_object_distance", info["min_object_distance"])
+        min_obj_distances = [
+            info["min_object_distance"]
+            for info in self.episode_infos
+            if info is not None and "min_object_distance" in info
+        ]
+        if min_obj_distances:
+            mean_min_obj_distance = np.mean(min_obj_distances)
+            self.logger.record("custom/mean_min_object_distance", mean_min_obj_distance)
 
-            if info is not None and "max_target_distance" in info:
-                self.logger.record("custom/mean_max_target_distance", info["max_target_distance"])
+        max_target_distances = [
+            info["max_target_distance"]
+            for info in self.episode_infos
+            if info is not None and "max_target_distance" in info
+        ]
+        if max_target_distances:
+            mean_max_target_distance = np.mean(max_target_distances)
+            self.logger.record("custom/mean_max_target_distance", mean_max_target_distance)
 
-            if info is not None and "out_of_bounds" in info:
-                self.logger.record("custom/mean_out_of_bounds", np.mean(int(info["out_of_bounds"])))
+        final_drone_altitudes = [
+            info["final_drone_altitude"]
+            for info in self.episode_infos
+            if info is not None and "final_drone_altitude" in info
+        ]
+        if final_drone_altitudes:
+            mean_final_drone_altitude = np.mean(final_drone_altitudes)
+            self.logger.record("custom/mean_final_drone_altitude", mean_final_drone_altitude)
 
-            if info is not None and "orientation_out_of_bounds" in info:
-                self.logger.record("custom/mean_orientation_out_of_bounds", np.mean(int(info["orientation_out_of_bounds"])))
+        final_target_distances = [
+            info["final_target_distance"]
+            for info in self.episode_infos
+            if info is not None and "final_target_distance" in info
+        ]
+        if final_target_distances:
+            mean_final_target_distance = np.mean(final_target_distances)
+            self.logger.record("custom/mean_final_target_distance", mean_final_target_distance)
 
-            if info is not None and "time_limit_reached" in info:
-                self.logger.record("custom/mean_time_limit_reached", np.mean(int(info["time_limit_reached"])))
+        out_of_bounds = [
+            info["out_of_bounds"]
+            for info in self.episode_infos
+            if info is not None and "out_of_bounds" in info
+        ]
+        if out_of_bounds:
+            mean_out_of_bounds = np.mean([int(ob) for ob in out_of_bounds])
+            self.logger.record("custom/mean_out_of_bounds", mean_out_of_bounds)
 
-            if info is not None and "obj_collision" in info:
-                self.logger.record("custom/mean_obj_collision", np.mean(int(info["obj_collision"])))
+        orientation_out_of_bounds = [
+            info["orientation_out_of_bounds"]
+            for info in self.episode_infos
+            if info is not None and "orientation_out_of_bounds" in info
+        ]
+        if orientation_out_of_bounds:
+            mean_orientation_out_of_bounds = np.mean([int(oob) for oob in orientation_out_of_bounds])
+            self.logger.record("custom/mean_orientation_out_of_bounds", mean_orientation_out_of_bounds)
 
-            if info is not None and "contact_collision" in info:
-                self.logger.record("custom/mean_contact_collision", np.mean(int(info["contact_collision"])))
+        time_limit_reached = [
+            info["time_limit_reached"]
+            for info in self.episode_infos
+            if info is not None and "time_limit_reached" in info
+        ]
+        if time_limit_reached:
+            mean_time_limit_reached = np.mean([int(tlr) for tlr in time_limit_reached])
+            self.logger.record("custom/mean_time_limit_reached", mean_time_limit_reached)
+
+        object_collisions = [
+            info["obj_collision"]
+            for info in self.episode_infos
+            if info is not None and "obj_collision" in info
+        ]
+        if object_collisions:
+            mean_object_collision = np.mean([int(oc) for oc in object_collisions])
+            self.logger.record("custom/mean_object_collision", mean_object_collision)
+
+        contact_collisions = [
+            info["contact_collision"]
+            for info in self.episode_infos
+            if info is not None and "contact_collision" in info
+        ]
+        if contact_collisions:
+            mean_contact_collision = np.mean([int(cc) for cc in contact_collisions])
+            self.logger.record("custom/mean_contact_collision", mean_contact_collision)
 
         return True
     
