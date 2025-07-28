@@ -31,6 +31,33 @@ class CustomTensorboardCallback(BaseCallback):
         for info, done in zip(infos,dones):
             if done and info is not None:
                 self.episode_infos.append(info)
+                '''
+                if "min_object_distance" in info:
+                    self.logger.record("custom/min_object_distance", info["min_object_distance"])
+                if "max_target_distance" in info:
+                    self.logger.record("custom/max_target_distance", info["max_target_distance"])
+                if "final_drone_altitude" in info:
+                    self.logger.record("custom/final_drone_altitude", info["final_drone_altitude"])
+                if "final_target_distance" in info:
+                    self.logger.record("custom/final_target_distance", info["final_target_distance"])
+                if "out_of_bounds" in info:
+                    self.logger.record("custom/out_of_bounds", info["out_of_bounds"])
+                if "orientation_out_of_bounds" in info:
+                    self.logger.record("custom/orientation_out_of_bounds", info["orientation_out_of_bounds"])
+                if "time_limit_reached" in info:
+                    self.logger.record("custom/time_limit_reached", info["time_limit_reached"])
+                if "obj_collision" in info:
+                    self.logger.record("custom/obj_collision", info["obj_collision"])
+                if "contact_collision" in info:
+                    self.logger.record("custom/contact_collision", info["contact_collision"])
+                '''
+        '''
+        for info in infos:
+            if info is not None and "kf_pos_error" in info:
+                self.logger.record("custom/kf_pos_error", info["kf_pos_error"])
+            if info is not None and "kf_vel_error" in info:
+                self.logger.record("custom/kf_vel_error", info["kf_vel_error"])
+        '''
         return True
 
     def _on_rollout_end(self):
@@ -115,6 +142,24 @@ class CustomTensorboardCallback(BaseCallback):
         if contact_collisions:
             mean_contact_collision = np.mean([int(cc) for cc in contact_collisions])
             self.logger.record("custom/mean_contact_collision", mean_contact_collision)
+
+        max_kf_pos_errors = [
+            info["max_kf_pos_error"]
+            for info in self.episode_infos
+            if info is not None and "max_kf_pos_error" in info
+        ]
+        if max_kf_pos_errors:
+            mean_max_kf_pos_error = np.mean(max_kf_pos_errors)
+            self.logger.record("custom/mean_max_kf_pos_error", mean_max_kf_pos_error)
+
+        max_kf_vel_errors = [
+            info["max_kf_vel_error"]
+            for info in self.episode_infos
+            if info is not None and "max_kf_vel_error" in info
+        ]
+        if max_kf_vel_errors:
+            mean_max_kf_vel_error = np.mean(max_kf_vel_errors)
+            self.logger.record("custom/mean_max_kf_vel_error", mean_max_kf_vel_error)
         
         self.episode_infos = [] # Resetting episode/rollout info
 

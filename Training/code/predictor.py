@@ -15,6 +15,7 @@ class KalmanFilter:
         self.H[2, 2] = 1
 
         self.Q = process_var * np.eye(6)        # Process noise
+        self.Q[3:6, :] = self.Q[3:6, :] * 50
         self.R = measurement_var * np.eye(3)    # Measurement noise
 
         self.x = np.zeros((6,1))    # Initial state

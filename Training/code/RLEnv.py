@@ -87,8 +87,9 @@ class RLEnv(BaseRLAviary):
                                process_var = self.PROCESS_NOISE,
                                measurement_var = self.MEASUREMENT_NOISE,
                                gravity = self.G)
-
-
+        
+        self.kf_pos_error = np.zeros((self.NUM_OBJECTS, 3))
+        self.kf_vel_error = np.zeros((self.NUM_OBJECTS, 3))
         
         drone_state_vec = self._getDroneStateVector(self.DRONE_ID)
 
@@ -102,6 +103,8 @@ class RLEnv(BaseRLAviary):
     def step(self, rel_action):
         # Convert the scaled relative action to a global action
         action = self.curr_drone_pos + rel_action*self.ACTION_SIZE
+
+        self.kf.timeUpdate()
 
         # Simulate a step and compute the 
         # observation, reward, termination, truncation, and info
@@ -142,6 +145,11 @@ class RLEnv(BaseRLAviary):
         self.min_obj_distance = np.inf
         self.max_target_distance = 0.0
         self.final_drone_alt = np.nan
+        self.max_kf_pos_error = 0.0
+        self.max_kf_vel_error = 0.0
+
+        self.kf_pos_error = np.zeros((self.NUM_OBJECTS, 3))
+        self.kf_vel_error = np.zeros((self.NUM_OBJECTS, 3))
 
         self.addBallRandom()
 
@@ -363,14 +371,22 @@ class RLEnv(BaseRLAviary):
             # Compute object observations
             obj_pos = np.zeros((self.NUM_OBJECTS, 3))
             obj_vel = np.zeros((self.NUM_OBJECTS, 3))
+            obj_pos_kf = np.zeros((self.NUM_OBJECTS, 3))
+            obj_vel_kf = np.zeros((self.NUM_OBJECTS, 3))
             for i in range(self.NUM_OBJECTS):
                 if i < len(self.ball_list):
-                    obs, _ = pb.getBasePositionAndOrientation(self.ball_list[i], physicsClientId=self.CLIENT)
-                    self.kf.measurementUpdate(obs[0:3]) #+ noise_obj[i, :])
+                    obs_pos, _ = pb.getBasePositionAndOrientation(self.ball_list[i], physicsClientId=self.CLIENT)
+                    obs_vel, _ = pb.getBaseVelocity(self.ball_list[i], physicsClientId=self.CLIENT)
+                    self.kf.measurementUpdate(obs_pos[0:3]) #+ noise_obj[i, :])
                     obj_temp = self.kf.getState()
-                    #obj_pos[i, :] = obj_temp[0:3, 0]
-                    obj_pos[i, :] = obs[0:3]
-                    obj_vel[i, :] = obj_temp[3:6, 0]
+                    obj_pos_kf[i, :] = obj_temp[0:3, 0]
+                    obj_pos[i, :] = obs_pos[0:3]
+                    self.kf_pos_error[i, :] = obj_pos[i, :] - obj_pos_kf[i, :]
+                    self.max_kf_pos_error = max(self.max_kf_pos_error, np.linalg.norm(self.kf_pos_error[i, :]))
+                    obj_vel_kf[i, :] = obj_temp[3:6, 0]
+                    obj_vel[i, :] = obs_vel[0:3]
+                    self.kf_vel_error[i, :] = obj_vel[i, :] - obj_vel_kf[i, :]
+                    self.max_kf_vel_error = max(self.max_kf_vel_error, np.linalg.norm(self.kf_vel_error[i, :]))
 
             # TODO, Fix so only one drone is used
             for i in range(self.NUM_DRONES):
@@ -423,14 +439,12 @@ class RLEnv(BaseRLAviary):
             return super()._computeObs()
 
     def _computeInfo(self):
+        # TODO, Clean up code
         success = False
         if getattr(self, "truncation_reason", None) == "time_limit":
             if (self.target_distance <= self.TARGET_RADIUS):
                 success = True
-
-        if self.collision_type == "object_collision":
-            pass
-
+  
         info = {"is_success": success,
                 "min_object_distance": getattr(self, "min_obj_distance" ,np.nan),
                 "max_target_distance": getattr(self, "max_target_distance", np.nan),
@@ -440,11 +454,10 @@ class RLEnv(BaseRLAviary):
                 "orientation_out_of_bounds": self.truncation_reason == "orientation",
                 "time_limit_reached": self.time_limit_reached,
                 "obj_collision": self.collision_type == "object_collision",
-                "contact_collision": self.collision_type == "contact_collision"
+                "contact_collision": self.collision_type == "contact_collision",
+                "max_kf_pos_error": getattr(self, "max_kf_pos_error", np.nan),
+                "max_kf_vel_error": getattr(self, "max_kf_vel_error", np.nan)
                 }
-        
-        if info["obj_collision"]:
-            print("Object collision detected")
 
         return info  
 
