@@ -6,24 +6,18 @@ from datetime import datetime
 
 import numpy as np
 from data_handling import Plot, Txt_file
-from gym_pybullet_drones.utils.enums import ActionType, ObservationType
-from gym_pybullet_drones.utils.Logger import Logger
-from gym_pybullet_drones.utils.utils import sync
 from RLEnv import RLEnv
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import (
     BaseCallback,
     CallbackList,
     EvalCallback,
-    StopTrainingOnMaxEpisodes,
     StopTrainingOnRewardThreshold,
 )
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNormalize
-
+from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
 
 class CustomTensorboardCallback(BaseCallback):
     def __init__(self, verbose=0):
@@ -160,7 +154,7 @@ class Train_PPO():
                                     seed = 0, 
                                     vec_env_cls=SubprocVecEnv)
         
-        training_env = VecNormalize(training_env, norm_obs=True, norm_reward=False, clip_obs=10.0)
+        training_env = VecNormalize(training_env, norm_obs=True, norm_reward=True, clip_obs=10.0)
         
         self.parameters['gui'] = False
         eval_env = SubprocVecEnv([
@@ -168,7 +162,7 @@ class Train_PPO():
                                     for _ in range(self.parameters['eval_episodes'])
                                 ])
         
-        eval_env = VecNormalize(eval_env, norm_obs=True, norm_reward=False, clip_obs=10.0)
+        eval_env = VecNormalize(eval_env, norm_obs=True, norm_reward=True, clip_obs=10.0)
         eval_env.obs_rms = training_env.obs_rms  # Use the same normalization as the training environment
 
         print("[INFO] Action space: ", training_env.action_space)
@@ -189,9 +183,9 @@ class Train_PPO():
                                      callback_on_new_best = callback_on_best,
                                      verbose = 1,
                                      n_eval_episodes = self.parameters['eval_episodes'],
-                                     best_model_save_path = self.filename,
-                                     log_path = self.filename + '/logs/',
                                      eval_freq = self.eval_freq,
+                                     log_path = self.filename + '/logs/',
+                                     best_model_save_path = self.filename,
                                      deterministic = True)
 
         callback_list = CallbackList([eval_callback, CustomTensorboardCallback()])
