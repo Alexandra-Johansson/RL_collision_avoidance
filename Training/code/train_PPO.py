@@ -12,6 +12,8 @@ from gym_pybullet_drones.utils.utils import sync
 from RLEnv import RLEnv
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import (
+    BaseCallback,
+    CallbackList,
     EvalCallback,
     StopTrainingOnMaxEpisodes,
     StopTrainingOnRewardThreshold,
@@ -21,7 +23,7 @@ from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNormalize
-from stable_baselines3.common.callbacks import BaseCallback, CallbackList
+
 
 class CustomTensorboardCallback(BaseCallback):
     def __init__(self, verbose=0):
@@ -119,6 +121,8 @@ class CustomTensorboardCallback(BaseCallback):
         if contact_collisions:
             mean_contact_collision = np.mean([int(cc) for cc in contact_collisions])
             self.logger.record("custom/mean_contact_collision", mean_contact_collision)
+        
+        self.episode_infos = [] # Resetting episode/rollout info
 
         return True
     
