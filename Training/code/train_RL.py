@@ -11,13 +11,13 @@ parameters = {
     'action_size': 0.8,
     'target_pos': np.array([[.0, .0, 1.0]]),
     'target_radius': 0.1,  # Radius of the target sphere
-    'avoidance_radius': 1.,  # Radius of the avoidance sphere
+    'avoidance_radius': 2.,  # Radius of the avoidance sphere
     'critical_safety_distance': 0.2,
-    'episode_length': 4,  # seconds
+    'episode_length': 6,  # seconds
     'eval_freq': 20,  # Evaluate every n episodes
     'eval_episodes' : 5,  # Number of episodes to evaluate
     'learning_rate': 5e-4, 
-    'batch_size': 128, # Should be a divisor of n_steps*n_envs
+    'batch_size': 512, # Should be a divisor of n_steps*n_envs
     'num_steps': 512, # Number of steps in an episode before updating policy, actual update is n_steps*n_envs
     'nr_of_env': 4,  # Number of environments to train in parallel
     'num_epochs': 5,
@@ -38,8 +38,9 @@ parameters = {
     'reward_step': -100,
     'reward_in_target': 200.0,
     'target_reward': 150000.0,  # Reward to stop training
-    'total_timesteps': int(3*1e6),  # Total timesteps to train
+    'total_timesteps': int(4*1e6),  # Total timesteps to train
     'gui': False,  # Whether to use GUI or not
+    'obs_timestep': True
 }
 
 if __name__ == "__main__":
@@ -47,12 +48,13 @@ if __name__ == "__main__":
     time_taken = []
 
     test_param_action_size = [0.5]
-    test_param_learning_rate = [5e-4]
-    test_param_reward_target_distance = [-0.005]
-    test_param_reward_object_distance_delta = [0.01]
-    test_param_reward_in_target = [0.01, 0.001]
-    test_param_reward_object_distance = [0.001]
+    test_param_learning_rate = [1e-4, 1e-5]
+    test_param_reward_target_distance = [-0.1]
+    test_param_reward_object_distance_delta = [0.1]
+    test_param_reward_in_target = [0.2]
+    test_param_reward_object_distance = [0.15, 0.1]
     test_param_reward_rpy = [-0.1]
+    test_param_obs_timestep = [False, True]
 
     for action_size in test_param_action_size:
         parameters['action_size'] = action_size
@@ -74,9 +76,12 @@ if __name__ == "__main__":
 
                             for reward_rpy in test_param_reward_rpy:
                                 parameters['reward_rpy'] = reward_rpy
-            
-                                PPO = Train_PPO(parameters=parameters)
 
-                                time_taken.append(PPO.train())
+                                for obs_timestep in test_param_obs_timestep:
+                                    parameters['obs_timestep'] = obs_timestep
+            
+                                    PPO = Train_PPO(parameters=parameters)
+
+                                    time_taken.append(PPO.train())
 
     print(time_taken)

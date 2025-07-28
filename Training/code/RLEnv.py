@@ -54,6 +54,8 @@ class RLEnv(BaseRLAviary):
         self.REWARD_OBJECT_DISTANCE_DELTA = parameters['reward_object_distance_delta']
         self.REWARD_STEP = parameters['reward_step']
         self.REWARD_IN_TARGET = parameters['reward_in_target']
+        self.OBS_TIMESTEP = parameters['obs_timestep']
+        #self.OBS_TIMESTEP = True
 
         self.ORIGINAL_XYZS = np.copy(self.INITIAL_XYZS)
 
@@ -218,7 +220,7 @@ class RLEnv(BaseRLAviary):
                 pass
             else:
                 # If the drone is outside the target radius, give a negative reward
-                ret += self.REWARD_TARGET_DISTANCE * self.target_distance
+                ret += self.REWARD_TARGET_DISTANCE * (self.target_distance**2)
                 #ret += (self.REWARD_TARGET_DISTANCE_DELTA * target_distance_delta)/self.CTRL_TIMESTEP
                 # Negative reward for each step outside the target
                 #ret += self.REWARD_STEP
@@ -376,17 +378,33 @@ class RLEnv(BaseRLAviary):
                 "Object_position": spaces.Box(low=obs_obj_lower_bound, high=obs_obj_upper_bound, dtype=np.float32)})
                 #"Object_velocity": spaces.Box(low=obs_obj_vel_lower_bound, high=obs_obj_vel_upper_bound, dtype=np.float32)})
             '''
-            return spaces.Dict({
-                #"Drone_position": spaces.Box(low=obs_drone_lower_bound, high=obs_drone_upper_bound, dtype=np.float32),
-                "Drone_velocity": spaces.Box(low=obs_drone_vel_lower_bound.flatten(), high=obs_drone_vel_upper_bound.flatten(), dtype=np.float64),
-                "Drone_rpy": spaces.Box(low=obs_drone_rpy_lower_bound.flatten(), high=obs_drone_rpy_upper_bound.flatten(), dtype=np.float64),
-                "Drone_rpy_velocity": spaces.Box(low=obs_drone_rpy_vel_lower_bound.flatten(), high=obs_drone_rpy_vel_upper_bound.flatten(), dtype=np.float64),
-                "Drone_altitude": spaces.Box(low=obs_altitude_lower_bound.flatten(), high=obs_altitude_upper_bound.flatten(), dtype=np.float64),
-                "Target_distance": spaces.Box(low=obs_target_lower_bound.flatten(), high=obs_target_upper_bound.flatten(), dtype=np.float64),
-                "Timestep": spaces.Box(low=timestep_lower_bound.flatten(), high=timestep_upper_bound.flatten(), dtype=np.float64),
-                "Object_position": spaces.Box(low=obs_obj_lower_bound.flatten(), high=obs_obj_upper_bound.flatten(), dtype=np.float64),
-                "Previous_object_position": spaces.Box(low=obs_obj_lower_bound.flatten(), high=obs_obj_upper_bound.flatten(), dtype=np.float64)})
-                #"Object_velocity": spaces.Box(low=obs_obj_vel_lower_bound, high=obs_obj_vel_upper_bound, dtype=np.float32)})
+
+
+            if self.OBS_TIMESTEP:
+                obs_space = spaces.Dict({
+                    #"Drone_position": spaces.Box(low=obs_drone_lower_bound, high=obs_drone_upper_bound, dtype=np.float32),
+                    "Drone_velocity": spaces.Box(low=obs_drone_vel_lower_bound.flatten(), high=obs_drone_vel_upper_bound.flatten(), dtype=np.float64),
+                    "Drone_rpy": spaces.Box(low=obs_drone_rpy_lower_bound.flatten(), high=obs_drone_rpy_upper_bound.flatten(), dtype=np.float64),
+                    "Drone_rpy_velocity": spaces.Box(low=obs_drone_rpy_vel_lower_bound.flatten(), high=obs_drone_rpy_vel_upper_bound.flatten(), dtype=np.float64),
+                    "Drone_altitude": spaces.Box(low=obs_altitude_lower_bound.flatten(), high=obs_altitude_upper_bound.flatten(), dtype=np.float64),
+                    "Target_distance": spaces.Box(low=obs_target_lower_bound.flatten(), high=obs_target_upper_bound.flatten(), dtype=np.float64),
+                    "Timestep": spaces.Box(low=timestep_lower_bound.flatten(), high=timestep_upper_bound.flatten(), dtype=np.float64),
+                    "Object_position": spaces.Box(low=obs_obj_lower_bound.flatten(), high=obs_obj_upper_bound.flatten(), dtype=np.float64),
+                    "Previous_object_position": spaces.Box(low=obs_obj_lower_bound.flatten(), high=obs_obj_upper_bound.flatten(), dtype=np.float64)})
+                    #"Object_velocity": spaces.Box(low=obs_obj_vel_lower_bound, high=obs_obj_vel_upper_bound, dtype=np.float32)})
+            else:
+                obs_space = spaces.Dict({
+                    #"Drone_position": spaces.Box(low=obs_drone_lower_bound, high=obs_drone_upper_bound, dtype=np.float32),
+                    "Drone_velocity": spaces.Box(low=obs_drone_vel_lower_bound.flatten(), high=obs_drone_vel_upper_bound.flatten(), dtype=np.float64),
+                    "Drone_rpy": spaces.Box(low=obs_drone_rpy_lower_bound.flatten(), high=obs_drone_rpy_upper_bound.flatten(), dtype=np.float64),
+                    "Drone_rpy_velocity": spaces.Box(low=obs_drone_rpy_vel_lower_bound.flatten(), high=obs_drone_rpy_vel_upper_bound.flatten(), dtype=np.float64),
+                    "Drone_altitude": spaces.Box(low=obs_altitude_lower_bound.flatten(), high=obs_altitude_upper_bound.flatten(), dtype=np.float64),
+                    "Target_distance": spaces.Box(low=obs_target_lower_bound.flatten(), high=obs_target_upper_bound.flatten(), dtype=np.float64),
+                    "Object_position": spaces.Box(low=obs_obj_lower_bound.flatten(), high=obs_obj_upper_bound.flatten(), dtype=np.float64),
+                    "Previous_object_position": spaces.Box(low=obs_obj_lower_bound.flatten(), high=obs_obj_upper_bound.flatten(), dtype=np.float64)})
+                    #"Object_velocity": spaces.Box(low=obs_obj_vel_lower_bound, high=obs_obj_vel_upper_bound, dtype=np.float32)})
+
+            return obs_space
 
         else:
             super()._observationSpace()
@@ -454,18 +472,31 @@ class RLEnv(BaseRLAviary):
             # Compute timestep observation
             timestep = np.array([self.step_counter])
             
-            obs_dict = {
-                #"Drone_position": drone_pos,
-                "Drone_velocity": drone_vel.flatten(),
-                "Drone_rpy": drone_rpy.flatten(),
-                "Drone_rpy_velocity": drone_rpy_vel.flatten(),
-                "Drone_altitude": drone_altitude.flatten(),
-                "Target_distance": target_distance.flatten(),
-                "Timestep": timestep.flatten(),
-                "Object_position": obj_pos.flatten(),
-                "Previous_object_position": self.prev_obj_pos.flatten()
-                #"Object_velocity": obj_vel
-            }
+            if self.OBS_TIMESTEP:
+                obs_dict = {
+                    #"Drone_position": drone_pos,
+                    "Drone_velocity": drone_vel.flatten(),
+                    "Drone_rpy": drone_rpy.flatten(),
+                    "Drone_rpy_velocity": drone_rpy_vel.flatten(),
+                    "Drone_altitude": drone_altitude.flatten(),
+                    "Target_distance": target_distance.flatten(),
+                    "Timestep": timestep.flatten(),
+                    "Object_position": obj_pos.flatten(),
+                    "Previous_object_position": self.prev_obj_pos.flatten()
+                    #"Object_velocity": obj_vel
+                }
+            else:
+                obs_dict = {
+                    #"Drone_position": drone_pos,
+                    "Drone_velocity": drone_vel.flatten(),
+                    "Drone_rpy": drone_rpy.flatten(),
+                    "Drone_rpy_velocity": drone_rpy_vel.flatten(),
+                    "Drone_altitude": drone_altitude.flatten(),
+                    "Target_distance": target_distance.flatten(),
+                    "Object_position": obj_pos.flatten(),
+                    "Previous_object_position": self.prev_obj_pos.flatten()
+                    #"Object_velocity": obj_vel
+                }
 
             # Store current object positions for next step
             for i in range(self.NUM_OBJECTS):
