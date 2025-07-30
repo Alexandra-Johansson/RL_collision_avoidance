@@ -149,7 +149,8 @@ class RLEnv(BaseRLAviary):
         self.max_target_distance = 0.0
         self.final_drone_alt = np.nan
         self.max_kf_pos_error = 0.0
-        self.max_kf_vel_error = 0.0
+        self.average_kf_vel_error = 0.0
+        self.average_kf_vel_error_counter = 1
 
         self.kf_pos_error = np.zeros((self.NUM_OBJECTS, 3))
         self.kf_vel_error = np.zeros((self.NUM_OBJECTS, 3))
@@ -383,12 +384,15 @@ class RLEnv(BaseRLAviary):
                     obj_pos_kf[i, :] = obs_kf_state[0:3, 0]
                     obj_pos_pb[i, :] = obs_pos_pb[0:3]
                     self.kf_pos_error[i, :] = obj_pos_pb[i, :] - obj_pos_kf[i, :]
+                    # TODO, Fix so multiple objects are supported
                     self.max_kf_pos_error = max(self.max_kf_pos_error, np.linalg.norm(self.kf_pos_error[i, :]))
 
                     obj_vel_kf[i, :] = obs_kf_state[3:6, 0]
                     obj_vel_pb[i, :] = obs_vel_pb[0:3]
                     self.kf_vel_error[i, :] = obj_vel_pb[i, :] - obj_vel_kf[i, :]
-                    self.max_kf_vel_error = max(self.max_kf_vel_error, np.linalg.norm(self.kf_vel_error[i, :]))
+                    # TODO, Fix so multiple objects are supported
+                    self.average_kf_vel_error = ((self.average_kf_vel_error_counter-1)*self.average_kf_vel_error + np.linalg.norm(self.kf_vel_error[i, :]))/self.average_kf_vel_error_counter
+                    self.average_kf_vel_error_counter += 1
 
                     if self.OBS_KF:
                         obj_pos = obj_pos_kf
@@ -455,7 +459,7 @@ class RLEnv(BaseRLAviary):
                 "obj_collision": self.collision_type == "object_collision",
                 "contact_collision": self.collision_type == "contact_collision",
                 "max_kf_pos_error": getattr(self, "max_kf_pos_error", np.nan),
-                "max_kf_vel_error": getattr(self, "max_kf_vel_error", np.nan)
+                "average_kf_vel_error": getattr(self, "average_kf_vel_error", np.nan)
                 }
 
         return info  

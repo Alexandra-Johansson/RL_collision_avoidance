@@ -153,13 +153,13 @@ class CustomTensorboardCallback(BaseCallback):
             self.logger.record("custom/mean_max_kf_pos_error", mean_max_kf_pos_error)
 
         max_kf_vel_errors = [
-            info["max_kf_vel_error"]
+            info["average_kf_vel_error"]
             for info in self.episode_infos
-            if info is not None and "max_kf_vel_error" in info
+            if info is not None and "average_kf_vel_error" in info
         ]
         if max_kf_vel_errors:
             mean_max_kf_vel_error = np.mean(max_kf_vel_errors)
-            self.logger.record("custom/mean_max_kf_vel_error", mean_max_kf_vel_error)
+            self.logger.record("custom/mean_average_kf_vel_error", mean_max_kf_vel_error)
         
         self.episode_infos = [] # Resetting episode/rollout info
 
