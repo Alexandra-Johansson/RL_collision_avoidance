@@ -21,10 +21,10 @@ parameters = {
     'num_steps': 512, # Number of steps in an episode before updating policy, actual update is n_steps*n_envs
     'nr_of_env': 4,  # Number of environments to train in parallel
     'num_epochs': 5,
-    'obs_noise': True,  # Add noise to the observations
+    'obs_noise': False,  # Add noise to the observations
     'obs_noise_std': 0.05,  # Standard deviation of the noise
-    'kf_process_noise': 1e-1,
-    'kf_measurement_noise': 1e-4,
+    'kf_process_noise': 1e-2,
+    'kf_measurement_noise': 1e-6,
     'reward_collision': -1.0,   # Negative reward for collision
     'reward_sucess': 1.0,   # Positive reward for avoiding collision and returning to target
     'reward_end_outside_target': -0.5,  # Negative reward for ending outside the target
@@ -40,7 +40,7 @@ parameters = {
     'target_reward': 150000.0,  # Reward to stop training
     'total_timesteps': int(4*1e6),  # Total timesteps to train
     'gui': False,  # Whether to use GUI or not
-    'obs_timestep': True, # Include timestep in observation
+    'obs_timestep': False, # Include timestep in observation
     'obs_obj_vel': True, # Include object velocity in observation
     'obs_kf': True # Include kalmanfilter estimates in observation, otherwise use PyBullet data
 }

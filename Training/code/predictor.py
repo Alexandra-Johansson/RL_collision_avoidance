@@ -15,7 +15,7 @@ class KalmanFilter:
         self.H[2, 2] = 1
 
         self.Q = process_var * np.eye(6)        # Process noise
-        self.Q[3:6, :] = self.Q[3:6, :] * 50
+        self.Q[3:6, :] = self.Q[3:6, :] * 1e4   # Increase process noise for velocity
         self.R = measurement_var * np.eye(3)    # Measurement noise
 
         self.x = np.zeros((6,1))    # Initial state
@@ -32,7 +32,6 @@ class KalmanFilter:
 
     def timeUpdate(self):
         self.x = self.F @ self.x
-        self.x[5, 0] -= self.gravity * self.dt # Include effect of gravity
         self.P = self.F @ self.P @ self.F.T + self.Q
 
     def predict(self, nr_predictions):
