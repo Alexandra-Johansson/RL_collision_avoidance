@@ -54,7 +54,10 @@ class RLEnv(BaseRLAviary):
         self.REWARD_OBJECT_DISTANCE_DELTA = parameters['reward_object_distance_delta']
         self.REWARD_STEP = parameters['reward_step']
         self.REWARD_IN_TARGET = parameters['reward_in_target']
+
         self.OBS_TIMESTEP = parameters['obs_timestep']
+        self.OBS_OBJ_VEL = parameters['obs_obj_vel']
+        self.OBS_KF = parameters["obs_kf"]
 
         self.ORIGINAL_XYZS = np.copy(self.INITIAL_XYZS)
 
@@ -268,20 +271,23 @@ class RLEnv(BaseRLAviary):
         if self.OBS_TYPE == ObservationType.KIN and self.ACT_TYPE == ActionType.PID:
             vel_low = np.array([-2,-2,-2])
             vel_high = np.array([2,2,2])
-            obj_pos_low = np.array([-5.0, -5.0, -5.0])
-            obj_pos_high = np.array([5.0, 5.0, 5.0])
-            obj_vel_low = np.array([-20, -20, -20])
-            obj_vel_high = np.array([20, 20, 20])
             rpy_low = np.array(-0.9*np.ones(3))
             rpy_high = np.array(0.9*np.ones(3))
             rpy_vel_low = np.array([-10, -10, -6])
             rpy_vel_high = np.array([10, 10, 6])
-            target_distance_low = np.array([-5.0, -5.0, -5.0])
-            target_distance_high = np.array([5.0, 5.0, 5.0])
-            timestep_low = np.array([0])
-            timestep_high = np.array([self.EPISODE_LEN*self.PYB_FREQ + 1])
             altitude_low = np.array([-0.5])
             altitude_high = np.array([10.0])
+
+            obj_pos_low = np.array([-5.0, -5.0, -5.0])
+            obj_pos_high = np.array([5.0, 5.0, 5.0])
+            obj_vel_low = np.array([-20, -20, -20])
+            obj_vel_high = np.array([20, 20, 20])
+            
+            target_distance_low = np.array([-5.0, -5.0, -5.0])
+            target_distance_high = np.array([5.0, 5.0, 5.0])
+
+            timestep_low = np.array([0])
+            timestep_high = np.array([self.EPISODE_LEN*self.PYB_FREQ + 1])
 
             # Add drone observation space
             # TODO, Fix so only one drone is used
@@ -309,30 +315,22 @@ class RLEnv(BaseRLAviary):
             obs_obj_vel_lower_bound = np.array([obj_vel_low for obj in range(self.NUM_OBJECTS)])
             obs_obj_vel_upper_bound = np.array([obj_vel_high for obj in range(self.NUM_OBJECTS)])
 
-            # TODO, fix observation space for different observation types
-            if self.OBS_TIMESTEP:
-                obs_space = spaces.Dict({
-                    "Drone_velocity": spaces.Box(low=obs_drone_vel_lower_bound.flatten(), high=obs_drone_vel_upper_bound.flatten(), dtype=np.float64),
-                    "Drone_rpy": spaces.Box(low=obs_drone_rpy_lower_bound.flatten(), high=obs_drone_rpy_upper_bound.flatten(), dtype=np.float64),
-                    "Drone_rpy_velocity": spaces.Box(low=obs_drone_rpy_vel_lower_bound.flatten(), high=obs_drone_rpy_vel_upper_bound.flatten(), dtype=np.float64),
-                    "Drone_altitude": spaces.Box(low=obs_altitude_lower_bound.flatten(), high=obs_altitude_upper_bound.flatten(), dtype=np.float64),
-                    "Target_distance": spaces.Box(low=obs_target_lower_bound.flatten(), high=obs_target_upper_bound.flatten(), dtype=np.float64),
-                    "Timestep": spaces.Box(low=timestep_lower_bound.flatten(), high=timestep_upper_bound.flatten(), dtype=np.float64),
-                    "Object_position": spaces.Box(low=obs_obj_lower_bound.flatten(), high=obs_obj_upper_bound.flatten(), dtype=np.float64),
-                    "Previous_object_position": spaces.Box(low=obs_obj_lower_bound.flatten(), high=obs_obj_upper_bound.flatten(), dtype=np.float64)})
-                    #"Object_velocity": spaces.Box(low=obs_obj_vel_lower_bound, high=obs_obj_vel_upper_bound, dtype=np.float32)})
-            else:
-                obs_space = spaces.Dict({
+            obs_dict = {
                     "Drone_velocity": spaces.Box(low=obs_drone_vel_lower_bound.flatten(), high=obs_drone_vel_upper_bound.flatten(), dtype=np.float64),
                     "Drone_rpy": spaces.Box(low=obs_drone_rpy_lower_bound.flatten(), high=obs_drone_rpy_upper_bound.flatten(), dtype=np.float64),
                     "Drone_rpy_velocity": spaces.Box(low=obs_drone_rpy_vel_lower_bound.flatten(), high=obs_drone_rpy_vel_upper_bound.flatten(), dtype=np.float64),
                     "Drone_altitude": spaces.Box(low=obs_altitude_lower_bound.flatten(), high=obs_altitude_upper_bound.flatten(), dtype=np.float64),
                     "Target_distance": spaces.Box(low=obs_target_lower_bound.flatten(), high=obs_target_upper_bound.flatten(), dtype=np.float64),
                     "Object_position": spaces.Box(low=obs_obj_lower_bound.flatten(), high=obs_obj_upper_bound.flatten(), dtype=np.float64),
-                    "Previous_object_position": spaces.Box(low=obs_obj_lower_bound.flatten(), high=obs_obj_upper_bound.flatten(), dtype=np.float64)})
-                    #"Object_velocity": spaces.Box(low=obs_obj_vel_lower_bound, high=obs_obj_vel_upper_bound, dtype=np.float32)})
+                    "Previous_object_position": spaces.Box(low=obs_obj_lower_bound.flatten(), high=obs_obj_upper_bound.flatten(), dtype=np.float64)}
 
-            return obs_space
+            if self.OBS_TIMESTEP:
+                obs_dict["Timestep"] = spaces.Box(low=timestep_lower_bound.flatten(), high=timestep_upper_bound.flatten(), dtype=np.float64)
+
+            if self.OBS_OBJ_VEL:
+                obs_dict["Object_velocity"] = spaces.Box(low=obs_obj_vel_lower_bound.flatten(), high=obs_obj_vel_upper_bound.flatten(), dtype=np.float64)
+            
+            return spaces.Dict(obs_dict)
 
         else:
             super()._observationSpace()
@@ -371,22 +369,33 @@ class RLEnv(BaseRLAviary):
             # Compute object observations
             obj_pos = np.zeros((self.NUM_OBJECTS, 3))
             obj_vel = np.zeros((self.NUM_OBJECTS, 3))
+            obj_pos_pb = np.zeros((self.NUM_OBJECTS, 3))
+            obj_vel_pb = np.zeros((self.NUM_OBJECTS, 3))
             obj_pos_kf = np.zeros((self.NUM_OBJECTS, 3))
             obj_vel_kf = np.zeros((self.NUM_OBJECTS, 3))
             for i in range(self.NUM_OBJECTS):
                 if i < len(self.ball_list):
-                    obs_pos, _ = pb.getBasePositionAndOrientation(self.ball_list[i], physicsClientId=self.CLIENT)
-                    obs_vel, _ = pb.getBaseVelocity(self.ball_list[i], physicsClientId=self.CLIENT)
-                    self.kf.measurementUpdate(obs_pos[0:3]) #+ noise_obj[i, :])
-                    obj_temp = self.kf.getState()
-                    obj_pos_kf[i, :] = obj_temp[0:3, 0]
-                    obj_pos[i, :] = obs_pos[0:3]
-                    self.kf_pos_error[i, :] = obj_pos[i, :] - obj_pos_kf[i, :]
+                    obs_pos_pb, _ = pb.getBasePositionAndOrientation(self.ball_list[i], physicsClientId=self.CLIENT)
+                    obs_vel_pb, _ = pb.getBaseVelocity(self.ball_list[i], physicsClientId=self.CLIENT)
+                    self.kf.measurementUpdate(obs_pos_pb[0:3]) #+ noise_obj[i, :])
+                    obs_kf_state = self.kf.getState()
+
+                    obj_pos_kf[i, :] = obs_kf_state[0:3, 0]
+                    obj_pos_pb[i, :] = obs_pos_pb[0:3]
+                    self.kf_pos_error[i, :] = obj_pos_pb[i, :] - obj_pos_kf[i, :]
                     self.max_kf_pos_error = max(self.max_kf_pos_error, np.linalg.norm(self.kf_pos_error[i, :]))
-                    obj_vel_kf[i, :] = obj_temp[3:6, 0]
-                    obj_vel[i, :] = obs_vel[0:3]
-                    self.kf_vel_error[i, :] = obj_vel[i, :] - obj_vel_kf[i, :]
+
+                    obj_vel_kf[i, :] = obs_kf_state[3:6, 0]
+                    obj_vel_pb[i, :] = obs_vel_pb[0:3]
+                    self.kf_vel_error[i, :] = obj_vel_pb[i, :] - obj_vel_kf[i, :]
                     self.max_kf_vel_error = max(self.max_kf_vel_error, np.linalg.norm(self.kf_vel_error[i, :]))
+
+                    if self.OBS_KF:
+                        obj_pos = obj_pos_kf
+                        obj_vel = obj_vel_kf
+                    else:
+                        obj_pos = obj_pos_pb
+                        obj_vel = obj_vel_pb
 
             # TODO, Fix so only one drone is used
             for i in range(self.NUM_DRONES):
@@ -403,31 +412,21 @@ class RLEnv(BaseRLAviary):
             timestep = np.array([self.step_counter])
             
             # TODO, Fix observation space for different observation types
+            obs_dict = {
+                    "Drone_velocity": drone_vel.flatten(),
+                    "Drone_rpy": drone_rpy.flatten(),
+                    "Drone_rpy_velocity": drone_rpy_vel.flatten(),
+                    "Drone_altitude": drone_altitude.flatten(),
+                    "Target_distance": target_distance.flatten(),
+                    "Object_position": obj_pos.flatten(),
+                    "Previous_object_position": self.prev_obj_pos.flatten()
+                }
+
             if self.OBS_TIMESTEP:
-                obs_dict = {
-                    #"Drone_position": drone_pos,
-                    "Drone_velocity": drone_vel.flatten(),
-                    "Drone_rpy": drone_rpy.flatten(),
-                    "Drone_rpy_velocity": drone_rpy_vel.flatten(),
-                    "Drone_altitude": drone_altitude.flatten(),
-                    "Target_distance": target_distance.flatten(),
-                    "Timestep": timestep.flatten(),
-                    "Object_position": obj_pos.flatten(),
-                    "Previous_object_position": self.prev_obj_pos.flatten()
-                    #"Object_velocity": obj_vel
-                }
-            else:
-                obs_dict = {
-                    #"Drone_position": drone_pos,
-                    "Drone_velocity": drone_vel.flatten(),
-                    "Drone_rpy": drone_rpy.flatten(),
-                    "Drone_rpy_velocity": drone_rpy_vel.flatten(),
-                    "Drone_altitude": drone_altitude.flatten(),
-                    "Target_distance": target_distance.flatten(),
-                    "Object_position": obj_pos.flatten(),
-                    "Previous_object_position": self.prev_obj_pos.flatten()
-                    #"Object_velocity": obj_vel
-                }
+                obs_dict["Timestep"] = timestep.flatten()
+
+            if self.OBS_OBJ_VEL:
+                obs_dict["Object_velocity"] = obj_vel.flatten()
 
             # Store current object positions for next step
             for i in range(self.NUM_OBJECTS):

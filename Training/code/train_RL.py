@@ -23,8 +23,8 @@ parameters = {
     'num_epochs': 5,
     'obs_noise': True,  # Add noise to the observations
     'obs_noise_std': 0.05,  # Standard deviation of the noise
-    'kf_process_noise': 1e-4,
-    'kf_measurement_noise': 1e-2,
+    'kf_process_noise': 1e-1,
+    'kf_measurement_noise': 1e-4,
     'reward_collision': -1.0,   # Negative reward for collision
     'reward_sucess': 1.0,   # Positive reward for avoiding collision and returning to target
     'reward_end_outside_target': -0.5,  # Negative reward for ending outside the target
@@ -40,7 +40,9 @@ parameters = {
     'target_reward': 150000.0,  # Reward to stop training
     'total_timesteps': int(4*1e6),  # Total timesteps to train
     'gui': False,  # Whether to use GUI or not
-    'obs_timestep': True
+    'obs_timestep': True, # Include timestep in observation
+    'obs_obj_vel': True, # Include object velocity in observation
+    'obs_kf': True # Include kalmanfilter estimates in observation, otherwise use PyBullet data
 }
 
 if __name__ == "__main__":
@@ -54,7 +56,7 @@ if __name__ == "__main__":
     test_param_reward_in_target = [0.2]
     test_param_reward_object_distance = [0.15, 0.1]
     test_param_reward_rpy = [-0.1]
-    test_param_obs_timestep = [False, True]
+    test_param_obs_timestep = [True]
 
     for action_size in test_param_action_size:
         parameters['action_size'] = action_size
