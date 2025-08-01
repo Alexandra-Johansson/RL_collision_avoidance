@@ -218,6 +218,8 @@ class Train_PPO():
                     learning_rate = self.parameters['learning_rate'],
                     batch_size = self.parameters['batch_size'],
                     n_epochs = self.parameters['num_epochs'],
+                    clip_range = self.parameters['clip_range'],
+                    ent_coef = self.parameters['entropy_coefficient'],
                     tensorboard_log = self.filename + '/tensorboard_logs/',
                     verbose = 1)
 
