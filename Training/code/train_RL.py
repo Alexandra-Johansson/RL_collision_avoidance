@@ -2,11 +2,13 @@ import numpy as np
 from gym_pybullet_drones.utils.enums import ActionType, DroneModel
 
 rl_algorithm = "DDPG" # DDPG or PPO
+
 if rl_algorithm == "DDPG":
     from train_DDPG import Train_DDPG
 
     parameters_DDPG = {
     'drone_model': DroneModel.CF2X,
+    'action_type': ActionType.PID,  # Action type for DDPG
     'num_objects': 1,  # Number of balls to add
     'initial_xyzs': np.array([[.0, .0, 1.0]]),
     'ctrl_freq': 60,
@@ -19,29 +21,29 @@ if rl_algorithm == "DDPG":
     'episode_length': 8,  # seconds
     'eval_freq': 20,  # Evaluate every n episodes
     'eval_episodes' : 5,  # Number of episodes to evaluate
-    'learning_rate': 5e-4, 
-    'batch_size': 1024, # Should be a divisor of n_steps*n_envs
+    'learning_rate': 1e-3, 
+    'batch_size': 512, # Should be a divisor of n_steps*n_envs
     'num_steps': 1024, # Number of steps in an episode before updating policy, actual update is n_steps*n_envs
-    'nr_of_env': 4,  # Number of environments to train in parallel
+    'nr_of_env': 1,  # Number of environments to train in parallel
     'num_epochs': 5,
     'entropy_coefficient': 0.0,
     'obs_noise': False,  # Add noise to the observations
     'obs_noise_std': 0.05,  # Standard deviation of the noise
     'kf_process_noise': 1e-2,
     'kf_measurement_noise': 1e-6,
-    'reward_collision': -1.0,   # Negative reward for collision
-    'reward_sucess': 1.0,   # Positive reward for avoiding collision and returning to target
-    'reward_end_outside_target': -0.5,  # Negative reward for ending outside the target
-    'reward_truncation': -1.0,  # Negative reward for truncation
-    'reward_target_distance': -0.0,
+    'reward_collision': -750.0,   # Negative reward for collision
+    'reward_sucess': 1000.0,   # Positive reward for avoiding collision and returning to target
+    'reward_end_outside_target': -500,  # Negative reward for ending outside the target
+    'reward_truncation': -750.0,  # Negative reward for truncation
+    'reward_target_distance': 10,
     'reward_target_distance_delta': 0.0, # Positive for rewarding moving towards target
     'reward_rpy': -0.0,  # Negative reward for angular velocity
     'reward_angular_velocity_delta': -0.0, # Negative reward for changing angle
     'reward_object_distance': -0.0,  # Negative reward for being close to the object
     'reward_object_distance_delta': 0.0, # Positive for rewarding moving away from object
-    'reward_action_difference': -0.15,
+    'reward_action_difference': -1,
     'reward_step': -0,
-    'reward_in_target': 0.0,
+    'reward_in_target': 1.0,
     'target_reward': 150000.0,  # Reward to stop training
     'total_timesteps': int(3*1e6),  # Total timesteps to train
     'gui': False,  # Whether to use GUI or not
@@ -65,6 +67,7 @@ if rl_algorithm == "PPO":
     'ctrl_freq': 30,
     'pyb_freq': 1*240,
     'action_size': 0.5,
+    'velocity_size': 5,
     'target_pos': np.array([[.0, .0, 1.0]]),
     'target_radius': 0.2,  # Radius of the target sphere
     'avoidance_radius': 5.,  # Radius of the avoidance sphere
@@ -86,19 +89,20 @@ if rl_algorithm == "PPO":
     'reward_sucess': 1.0,   # Positive reward for avoiding collision and returning to target
     'reward_end_outside_target': -0.75,  # Negative reward for ending outside the target
     'reward_truncation': -1.0,  # Negative reward for truncation
-    'reward_target_distance': -0.0,
+    'reward_target_distance': -0.1,
     'reward_target_distance_delta': 0.0, # Positive for rewarding moving towards target
     'reward_rpy': -0.0,  # Negative reward for angular velocity
     'reward_angular_velocity_delta': -0.0, # Negative reward for changing angle
     'reward_object_distance': -0.0,  # Negative reward for being close to the object
     'reward_object_distance_delta': 0.0, # Positive for rewarding moving away from object
+    'reward_action_difference': -0.015,
     'reward_step': -0,
     'reward_in_target': 0.0,
     'target_reward': 150000.0,  # Reward to stop training
-    'total_timesteps': int(6*1e6),  # Total timesteps to train
+    'total_timesteps': int(3*1e6),  # Total timesteps to train
     'gui': False,  # Whether to use GUI or not
     'obs_timestep': False, # Include timestep in observation
-    'obs_obj_vel': True, # Include object velocity in observation
+    'obs_obj_vel': False, # Include object velocity in observation
     'obs_kf': False, # Include kalmanfilter estimates in observation, otherwise use PyBullet data
     'obs_action_difference': True,  # Include action difference in observation
     'clip_range': 0.2
@@ -109,11 +113,13 @@ if __name__ == "__main__":
     time_taken = []
 
     if rl_algorithm == "PPO":
-        test_param_learning_rate = [5e-4]
-        test_param_reward_target_distance = [-0.1]
-        test_param_obs_action_difference = [True]
+        test_param_learning_rate = [1e-3]
+        test_param_reward_target_distance = [0.005]
+        test_param_reward_in_target = [0.01]
+        test_param_reward_action_difference = [-0.005]
         test_param_clip_range = [0.2]
-        test_param_action_size = [0.3]
+        test_param_action_size = [0.5]
+        test_param_velocity_size = [3.0]
         test_param_ctrl_freq = [30]
 
         for learning_rate in test_param_learning_rate:
@@ -122,25 +128,31 @@ if __name__ == "__main__":
             for reward_target_distance in test_param_reward_target_distance:
                 parameters_PPO['reward_target_distance'] = reward_target_distance
 
-                for obs_action_difference in test_param_obs_action_difference:
-                    parameters_PPO['obs_action_difference'] = obs_action_difference
+                for reward_in_target in test_param_reward_in_target:
+                    parameters_PPO['reward_in_target'] = reward_in_target
 
-                    for clip_range in test_param_clip_range:
-                        parameters_PPO['clip_range'] = clip_range
+                    for reward_action_difference in test_param_reward_action_difference:
+                        parameters_PPO['reward_action_difference'] = reward_action_difference
 
-                        for action_size in test_param_action_size:
-                            parameters_PPO['action_size'] = action_size
+                        for clip_range in test_param_clip_range:
+                            parameters_PPO['clip_range'] = clip_range
 
-                            for ctrl_freq in test_param_ctrl_freq:
-                                parameters_PPO['ctrl_freq'] = ctrl_freq
+                            for action_size in test_param_action_size:
+                                parameters_PPO['action_size'] = action_size
 
-                                PPO = Train_PPO(parameters=parameters_PPO)
+                                for velocity_size in test_param_velocity_size:
+                                    parameters_PPO['velocity_size'] = velocity_size
 
-                                time_taken.append(PPO.train())
+                                    for ctrl_freq in test_param_ctrl_freq:
+                                        parameters_PPO['ctrl_freq'] = ctrl_freq
+
+                                        PPO = Train_PPO(parameters=parameters_PPO)
+
+                                        time_taken.append(PPO.train())
 
     if rl_algorithm == "DDPG":
         test_param_reward_object_distance = [-0.5, -1.0, -1.5]
-        test_param_nr_of_env = [4, 1]
+        test_param_nr_of_env = [1, 4]
 
         for reward_object_distance in test_param_reward_object_distance:
             parameters_DDPG["reward_object_distance"] = reward_object_distance
