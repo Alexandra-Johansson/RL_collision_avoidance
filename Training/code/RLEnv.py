@@ -22,10 +22,11 @@ class RLEnv(BaseRLAviary):
                  physics = Physics.PYB,
                  record = False,
                  obs = ObservationType.KIN,
-                 act = ActionType.PID,
+                 #act = ActionType.PID,
                  parameters = None):
 
         self.DRONE_MODEL = parameters['drone_model']
+        self.ACTION_TYPE = parameters['action_type']
         self.NUM_OBJECTS = parameters['num_objects']
         self.INITIAL_XYZS = parameters['initial_xyzs']
         self.CTRL_FREQ = parameters['ctrl_freq']
@@ -54,6 +55,7 @@ class RLEnv(BaseRLAviary):
         self.REWARD_OBJECT_DISTANCE_DELTA = parameters['reward_object_distance_delta']
         self.REWARD_STEP = parameters['reward_step']
         self.REWARD_IN_TARGET = parameters['reward_in_target']
+        self.REWARD_ACTION_DIFFERENCE = parameters['reward_action_difference']
 
         self.OBS_TIMESTEP = parameters['obs_timestep']
         self.OBS_OBJ_VEL = parameters['obs_obj_vel']
@@ -81,7 +83,8 @@ class RLEnv(BaseRLAviary):
                          self.GUI,
                          record,
                          obs,
-                         act)
+                         self.ACTION_TYPE
+                         )
 
         self.EPISODE_LEN_SEC = parameters['episode_length']
 
@@ -103,8 +106,13 @@ class RLEnv(BaseRLAviary):
         self.curr_ang_vel = drone_state_vec[13:16]  # Angular velocity
         self.obj_distances = np.zeros((self.NUM_OBJECTS, 1))
         self.prev_obj_pos = np.zeros((self.NUM_OBJECTS, 3))  # Previous object positions
-        self.curr_action = np.zeros((self.NUM_DRONES, 3))  # Current action
-        self.prev_action = np.zeros((self.NUM_DRONES, 3))  # Previous action
+        
+        if self.ACTION_TYPE == ActionType.PID:
+            self.curr_action = np.zeros((self.NUM_DRONES, 3))  # Current action
+            self.prev_action = np.zeros((self.NUM_DRONES, 3))  # Previous action
+        elif self.ACTION_TYPE == ActionType.VEL:
+            self.curr_action = np.zeros((self.NUM_DRONES, 4))
+            self.prev_action = np.zeros((self.NUM_DRONES, 4))
 
         self.visual_target_id = pb.createVisualShape(shapeType = pb.GEOM_SPHERE,
                              rgbaColor=[0.0, 1.0, 0.0, 0.5], 
@@ -115,12 +123,57 @@ class RLEnv(BaseRLAviary):
                            baseVisualShapeIndex=self.visual_target_id,
                            basePosition=self.TARGET_POS[0],
                            physicsClientId=self.CLIENT)
+        
+        self.visual_action_ids = []
+
+        self.reward_rpy = 0.0
+        self.reward_in_target = 0.0
+        self.reward_target_distance = 0.0
+        self.reward_object_distance = 0.0
+        self.reward_object_distance_delta = 0.0
+        self.reward_action_difference = 0.0
+
+        self.min_obj_distance = np.inf
+        self.max_target_distance = 0.0
+        self.final_drone_alt = np.nan
+        self.max_kf_pos_error = 0.0
+        self.average_kf_vel_error = 0.0
+        self.average_kf_vel_error_counter = 1
 
     def step(self, rel_action):
         # Convert the scaled relative action to a global action
-        action = self.curr_drone_pos + rel_action*self.ACTION_SIZE
+        if self.ACTION_TYPE == ActionType.PID:
+            action = self.curr_drone_pos + rel_action*self.ACTION_SIZE
+        if self.ACTION_TYPE == ActionType.VEL:
+            pos_and_vel = np.append(self.curr_drone_pos, 0)
+            #rel_action[0][3] = rel_action[0][3]*5
+            scaled_rel_action = rel_action*self.ACTION_SIZE
+            action = pos_and_vel + scaled_rel_action
+        #action = rel_action
         self.curr_action = rel_action
-
+        
+        if self.GUI:
+            self.visual_action_id = pb.createVisualShape(shapeType = pb.GEOM_SPHERE,
+                                rgbaColor=[1.0, 0.0, 0.0, 1.0], 
+                                radius=0.01, 
+                                physicsClientId=self.CLIENT)
+            
+            self.visual_action_ids.append(pb.createMultiBody(baseMass=0,
+                            baseVisualShapeIndex=self.visual_action_id,
+                            basePosition=action[0][0:3],
+                            physicsClientId=self.CLIENT))
+            
+            for id in self.visual_action_ids:
+                data = pb.getVisualShapeData(id, physicsClientId=self.CLIENT)
+                rgba = np.array(data[0][7])  # Get the rgba color of the visual shape
+                rgba[3] = rgba[3] - 0.1
+                pb.changeVisualShape(objectUniqueId = id,
+                                    linkIndex = data[0][1],
+                                    rgbaColor=rgba,            #pb.removeBody(self.visual_action_ids.pop(0), physicsClientId=self.CLIENT)
+                                    physicsClientId=self.CLIENT)
+            if len(self.visual_action_ids) >= 10:
+                self.visual_action_ids.pop(0)
+        
         self.kf.timeUpdate()
 
         # Simulate a step and compute the 
@@ -160,8 +213,12 @@ class RLEnv(BaseRLAviary):
         self.curr_ang_vel = drone_state_vec[13:16] # Angular velocity
         self.obj_distances = np.zeros((self.NUM_OBJECTS, 1))
         self.prev_obj_pos = np.zeros((self.NUM_OBJECTS, 3))  # Previous object positions
-        self.curr_action = np.zeros((self.NUM_DRONES, 3))  # Current action
-        self.prev_action = np.zeros((self.NUM_DRONES, 3))  # Previous action for action difference observation
+        if self.ACTION_TYPE == ActionType.PID:
+            self.curr_action = np.zeros((self.NUM_DRONES, 3))  # Current action
+            self.prev_action = np.zeros((self.NUM_DRONES, 3))  # Previous action for action difference observation
+        elif self.ACTION_TYPE == ActionType.VEL:
+            self.curr_action = np.zeros((self.NUM_DRONES, 4))  
+            self.prev_action = np.zeros((self.NUM_DRONES, 4))
         self.time_limit_reached = False
 
         self.min_obj_distance = np.inf
@@ -173,6 +230,7 @@ class RLEnv(BaseRLAviary):
 
         self.kf_pos_error = np.zeros((self.NUM_OBJECTS, 3))
         self.kf_vel_error = np.zeros((self.NUM_OBJECTS, 3))
+        self.visual_action_ids = []
 
         self.visual_target_id = pb.createVisualShape(shapeType = pb.GEOM_SPHERE,
                              rgbaColor=[0.0, 1.0, 0.0, 0.5], 
@@ -190,6 +248,13 @@ class RLEnv(BaseRLAviary):
 
     def _computeReward(self):
         ret = 0.0
+
+        self.reward_rpy = 0.0
+        self.reward_in_target = 0.0
+        self.reward_target_distance = 0.0
+        self.reward_object_distance = 0.0
+        self.reward_object_distance_delta = 0.0
+        self.reward_action_difference = 0.0
 
         prev_ang_vel = np.copy(self.curr_ang_vel)
         prev_target_distance = np.copy(self.target_distance)
@@ -228,25 +293,36 @@ class RLEnv(BaseRLAviary):
             obj_distances_delta = np.sum(prev_obj_distances - self.obj_distances)
 
             # Reward based on factors
-            ret += self.REWARD_RPY * (self.curr_drone_rpy[0]**2 + self.curr_drone_rpy[1]**2)
+            self.reward_rpy += self.REWARD_RPY * (self.curr_drone_rpy[0]**2 + self.curr_drone_rpy[1]**2)
 
             if (self.target_distance <= self.TARGET_RADIUS):
                 # If the drone is within the target radius, give a positive reward
-                ret += self.REWARD_IN_TARGET
+                self.reward_in_target = self.REWARD_IN_TARGET
             else:
                 # If the drone is outside the target radius, give a negative reward
-                ret += self.REWARD_TARGET_DISTANCE * (self.target_distance**2)
+                self.reward_target_distance = self.REWARD_TARGET_DISTANCE * (self.target_distance)
                 # TODO, add target_distance_delta
+            self.reward_target_distance = self.REWARD_TARGET_DISTANCE * (self.target_distance)
             
             # TODO, needs work before multiple objects are supported, change to loop trough all objects
-            if (any(self.obj_distances < self.AVOIDANCE_RADIUS)):
-                ret += self.REWARD_OBJECT_DISTANCE / np.sum(self.obj_distances)
-                pass
+            #if (any(self.obj_distances < self.AVOIDANCE_RADIUS)):
+            #self.reward_object_distance = self.REWARD_OBJECT_DISTANCE / np.sum(self.obj_distances)
 
             # 2. Negative reward based on if the object is moving towards the drone
             if (obj_distances_delta < 0):
                 # If the object is to close, give a reward based on change in distance
-                ret += self.REWARD_OBJECT_DISTANCE_DELTA * (obj_distances_delta**2)
+                self.reward_object_distance_delta = self.REWARD_OBJECT_DISTANCE_DELTA * (obj_distances_delta**2)
+
+            self.reward_action_difference = 0.0
+            if self.OBS_ACTION_DIFFERENCE:
+                self.reward_action_difference = self.REWARD_ACTION_DIFFERENCE*np.linalg.norm(self.action_difference)
+
+        #ret += self.reward_rpy
+        #ret += self.reward_in_target
+        ret += self.reward_target_distance
+        #ret += self.reward_object_distance
+        #ret += self.reward_object_distance_delta
+        ret += self.reward_action_difference
 
         return float(ret)
 
@@ -298,7 +374,7 @@ class RLEnv(BaseRLAviary):
             return False
 
     def _observationSpace(self):
-        if self.OBS_TYPE == ObservationType.KIN and self.ACT_TYPE == ActionType.PID:
+        if self.OBS_TYPE == ObservationType.KIN and (self.ACT_TYPE == ActionType.PID or self.ACT_TYPE == ActionType.VEL):
             vel_low = np.array([-2,-2,-2])
             vel_high = np.array([2,2,2])
             rpy_low = np.array(-0.9*np.ones(3))
@@ -319,8 +395,12 @@ class RLEnv(BaseRLAviary):
             timestep_low = np.array([0])
             timestep_high = np.array([self.EPISODE_LEN*self.PYB_FREQ + 1])
 
-            action_difference_low = np.array([-1.0, -1.0, -1.0])
-            action_difference_high = np.array([1.0, 1.0, 1.0])
+            if self.ACTION_TYPE == ActionType.PID:
+                action_difference_low = np.array([-1.0, -1.0, -1.0])
+                action_difference_high = np.array([1.0, 1.0, 1.0])
+            elif self.ACTION_TYPE == ActionType.VEL:
+                action_difference_low = np.array([-1.0, -1.0, -1.0, -1.0])
+                action_difference_high = np.array([1.0, 1.0, 1.0, 1.0])
 
             # Add drone observation space
             # TODO, Fix so only one drone is used
@@ -369,7 +449,7 @@ class RLEnv(BaseRLAviary):
             
             if self.OBS_ACTION_DIFFERENCE:
                 obs_dict["Action_difference"] = spaces.Box(low=obs_action_difference_lower_bound.flatten(), high=obs_action_difference_upper_bound.flatten(), dtype=np.float64)
-
+            
             return spaces.Dict(obs_dict)
 
         else:
@@ -380,7 +460,7 @@ class RLEnv(BaseRLAviary):
         return super()._actionSpace()
     
     def _computeObs(self):
-        if self.OBS_TYPE == ObservationType.KIN and self.ACT_TYPE == ActionType.PID:
+        if self.OBS_TYPE == ObservationType.KIN and (self.ACT_TYPE == ActionType.PID or self.ACT_TYPE == ActionType.VEL):
             if self.OBS_NOISE:
                 # TODO, Fix so only one drone is used
                 #noise_drone = np.random.normal(0, self.OBS_NOISE_STD, (self.NUM_DRONES, 3))
@@ -455,7 +535,7 @@ class RLEnv(BaseRLAviary):
             timestep = np.array([self.step_counter])
 
             # Compute action difference observation
-            action_difference = self.curr_action - self.prev_action
+            self.action_difference = abs(self.curr_action - self.prev_action)
             self.prev_action = np.copy(self.curr_action)
             
             # TODO, Fix observation space for different observation types
@@ -476,7 +556,7 @@ class RLEnv(BaseRLAviary):
                 obs_dict["Object_velocity"] = obj_vel.flatten()
 
             if self.OBS_ACTION_DIFFERENCE:
-                obs_dict["Action_difference"] = abs(action_difference).flatten()
+                obs_dict["Action_difference"] = abs(self.action_difference).flatten()
 
             # Store current object positions for next step
             for i in range(self.NUM_OBJECTS):
@@ -493,6 +573,10 @@ class RLEnv(BaseRLAviary):
         if getattr(self, "truncation_reason", None) == "time_limit":
             if (self.target_distance <= self.TARGET_RADIUS):
                 success = True
+        
+        big_yaw_detected = False
+        if abs(self.curr_drone_rpy[2]) > 0.9:
+            big_yaw_detected = True
   
         info = {"is_success": success,
                 "min_object_distance": getattr(self, "min_obj_distance" ,np.nan),
@@ -505,7 +589,14 @@ class RLEnv(BaseRLAviary):
                 "obj_collision": self.collision_type == "object_collision",
                 "contact_collision": self.collision_type == "contact_collision",
                 "max_kf_pos_error": getattr(self, "max_kf_pos_error", np.nan),
-                "average_kf_vel_error": getattr(self, "average_kf_vel_error", np.nan)
+                "average_kf_vel_error": getattr(self, "average_kf_vel_error", np.nan),
+                "reward_rpy": self.reward_rpy,
+                "reward_in_target": self.reward_in_target,
+                "reward_target_distance": self.reward_target_distance,
+                "reward_object_distance": self.reward_object_distance,
+                "reward_object_distance_delta": self.reward_object_distance_delta,
+                "reward_action_difference": self.reward_action_difference,
+                "big_yaw_detected": big_yaw_detected
                 }
 
         return info  

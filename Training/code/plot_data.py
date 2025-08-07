@@ -1,11 +1,9 @@
-import matplotlib.pyplot as plt
-import numpy as np
 from data_handling import Plot
 
-model_filepath = "Training/results/PPO_training_2025.07.04-23.29.23"
-model_filepath2 = "Training/results/PPO_training_2025.07.05-12.50.08"
-model_filepath3 = "Training/results/PPO_training_2025.07.06-01.54.55"
-model_filepath4 = "Training/results/PPO_training_2025.07.06-04.32.42"
+model_filepath = "Training/results/PPO_training_2025.08.07-01.47.19"
+model_filepath2 = "Training/results/PPO_training_2025.08.07-04.53.13"
+model_filepath3 = "Training/results/PPO_training_2025.08.07-07.35.27"
+model_filepath4 = "Training/results/PPO_training_2025.08.07-23.03.40"
 
 plot = Plot(model_filepath)
 plot2 = Plot(model_filepath2)
