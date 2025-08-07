@@ -33,6 +33,7 @@ class RLEnv(BaseRLAviary):
         self.PYB_FREQ = parameters['pyb_freq']
         self.EPISODE_LEN = parameters['episode_length']
         self.ACTION_SIZE = parameters['action_size']
+        self.VELOCITY_SIZE = parameters['velocity_size']
         self.TARGET_POS = parameters['target_pos']
         self.TARGET_RADIUS = parameters['target_radius']
         self.AVOIDANCE_RADIUS = parameters['avoidance_radius']
@@ -146,9 +147,9 @@ class RLEnv(BaseRLAviary):
             action = self.curr_drone_pos + rel_action*self.ACTION_SIZE
         if self.ACTION_TYPE == ActionType.VEL:
             pos_and_vel = np.append(self.curr_drone_pos, 0)
-            #rel_action[0][3] = rel_action[0][3]*5
-            scaled_rel_action = rel_action*self.ACTION_SIZE
-            action = pos_and_vel + scaled_rel_action
+            rel_action[0][0:3] = rel_action[0][0:3]*self.ACTION_SIZE
+            rel_action[0][3] = rel_action[0][3]*self.VELOCITY_SIZE
+            action = pos_and_vel + rel_action
         #action = rel_action
         self.curr_action = rel_action
         
@@ -300,9 +301,10 @@ class RLEnv(BaseRLAviary):
                 self.reward_in_target = self.REWARD_IN_TARGET
             else:
                 # If the drone is outside the target radius, give a negative reward
-                self.reward_target_distance = self.REWARD_TARGET_DISTANCE * (self.target_distance)
+                #self.reward_target_distance = self.REWARD_TARGET_DISTANCE * (self.target_distance**2)
+                self.reward_target_distance = self.REWARD_TARGET_DISTANCE / (self.target_distance**2)
                 # TODO, add target_distance_delta
-            self.reward_target_distance = self.REWARD_TARGET_DISTANCE * (self.target_distance)
+            #self.reward_target_distance = self.REWARD_TARGET_DISTANCE * (self.target_distance)
             
             # TODO, needs work before multiple objects are supported, change to loop trough all objects
             #if (any(self.obj_distances < self.AVOIDANCE_RADIUS)):
@@ -318,7 +320,7 @@ class RLEnv(BaseRLAviary):
                 self.reward_action_difference = self.REWARD_ACTION_DIFFERENCE*np.linalg.norm(self.action_difference)
 
         #ret += self.reward_rpy
-        #ret += self.reward_in_target
+        ret += self.reward_in_target
         ret += self.reward_target_distance
         #ret += self.reward_object_distance
         #ret += self.reward_object_distance_delta
