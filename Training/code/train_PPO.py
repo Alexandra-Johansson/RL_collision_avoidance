@@ -23,41 +23,18 @@ class CustomTensorboardCallback(BaseCallback):
     def __init__(self, verbose=0):
         super().__init__(verbose)
         self.episode_infos = []
+        self.reward_infos = []
 
     def _on_step(self) -> bool:
         # Check if an episode ended
         infos = self.locals.get("infos", [])
         dones = self.locals.get("dones", [])
         for info, done in zip(infos,dones):
+            if info is not None:
+                self.reward_infos.append(info)
             if done and info is not None:
                 self.episode_infos.append(info)
-                '''
-                if "min_object_distance" in info:
-                    self.logger.record("custom/min_object_distance", info["min_object_distance"])
-                if "max_target_distance" in info:
-                    self.logger.record("custom/max_target_distance", info["max_target_distance"])
-                if "final_drone_altitude" in info:
-                    self.logger.record("custom/final_drone_altitude", info["final_drone_altitude"])
-                if "final_target_distance" in info:
-                    self.logger.record("custom/final_target_distance", info["final_target_distance"])
-                if "out_of_bounds" in info:
-                    self.logger.record("custom/out_of_bounds", info["out_of_bounds"])
-                if "orientation_out_of_bounds" in info:
-                    self.logger.record("custom/orientation_out_of_bounds", info["orientation_out_of_bounds"])
-                if "time_limit_reached" in info:
-                    self.logger.record("custom/time_limit_reached", info["time_limit_reached"])
-                if "obj_collision" in info:
-                    self.logger.record("custom/obj_collision", info["obj_collision"])
-                if "contact_collision" in info:
-                    self.logger.record("custom/contact_collision", info["contact_collision"])
-                '''
-        '''
-        for info in infos:
-            if info is not None and "kf_pos_error" in info:
-                self.logger.record("custom/kf_pos_error", info["kf_pos_error"])
-            if info is not None and "kf_vel_error" in info:
-                self.logger.record("custom/kf_vel_error", info["kf_vel_error"])
-        '''
+                
         return True
 
     def _on_rollout_end(self):
@@ -160,8 +137,72 @@ class CustomTensorboardCallback(BaseCallback):
         if max_kf_vel_errors:
             mean_max_kf_vel_error = np.mean(max_kf_vel_errors)
             self.logger.record("custom/mean_average_kf_vel_error", mean_max_kf_vel_error)
+
+        reward_rpys = [
+            info["reward_rpy"]
+            for info in self.reward_infos
+            if info is not None and "reward_rpy" in info
+        ]
+        if reward_rpys:
+            mean_reward_rpy = np.mean(reward_rpys)
+            self.logger.record("custom/mean_reward_rpy", mean_reward_rpy)
+
+        reward_in_targets = [
+            info["reward_in_target"]
+            for info in self.reward_infos
+            if info is not None and "reward_in_target" in info
+        ]
+        if reward_in_targets:
+            mean_reward_in_target = np.mean(reward_in_targets)
+            self.logger.record("custom/mean_reward_in_target", mean_reward_in_target)
+        
+        reward_target_distances = [
+            info["reward_target_distance"]
+            for info in self.reward_infos
+            if info is not None and "reward_target_distance" in info
+        ]
+        if reward_target_distances:
+            mean_reward_target_distance = np.mean(reward_target_distances)
+            self.logger.record("custom/mean_reward_target_distance", mean_reward_target_distance)
+
+        reward_object_distances = [
+            info["reward_object_distance"]
+            for info in self.reward_infos
+            if info is not None and "reward_object_distance" in info
+        ]
+        if reward_object_distances:
+            mean_reward_object_distance = np.mean(reward_object_distances)
+            self.logger.record("custom/mean_reward_object_distance", mean_reward_object_distance)
+
+        reward_object_distance_deltas = [
+            info["reward_object_distance_delta"]
+            for info in self.reward_infos
+            if info is not None and "reward_object_distance_delta" in info
+        ]
+        if reward_object_distance_deltas:
+            mean_reward_object_distance_delta = np.mean(reward_object_distance_deltas)
+            self.logger.record("custom/mean_reward_object_distance_delta", mean_reward_object_distance_delta)
+        
+        reward_action_differences = [
+            info["reward_action_difference"]
+            for info in self.reward_infos
+            if info is not None and "reward_action_difference" in info
+        ]
+        if reward_action_differences:
+            mean_reward_action_difference = np.mean(reward_action_differences)
+            self.logger.record("custom/mean_reward_action_difference", mean_reward_action_difference)
+
+        big_yaw_detecteds = [
+            info["big_yaw_detected"]
+            for info in self.reward_infos
+            if info is not None and "big_yaw_detected" in info
+        ]
+        if big_yaw_detecteds:
+            mean_big_yaw_detected = np.mean([int(byd) for byd in big_yaw_detecteds])
+            self.logger.record("custom/mean_big_yaw_detected", mean_big_yaw_detected)
         
         self.episode_infos = [] # Resetting episode/rollout info
+        self.reward_infos = []
 
         return True
     
