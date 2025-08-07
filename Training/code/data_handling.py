@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from gym_pybullet_drones.utils.enums import DroneModel
+from gym_pybullet_drones.utils.enums import DroneModel, ActionType
 import torch
 from tensorboard import program
 
