@@ -1,7 +1,7 @@
 import numpy as np
 from gym_pybullet_drones.utils.enums import ActionType, DroneModel
 
-rl_algorithm = "DDPG" # DDPG or PPO
+rl_algorithm = "PPO" # DDPG or PPO
 
 if rl_algorithm == "DDPG":
     from train_DDPG import Train_DDPG
@@ -14,6 +14,7 @@ if rl_algorithm == "DDPG":
     'ctrl_freq': 60,
     'pyb_freq': 1*240,
     'action_size': 0.5,
+    'velocity_size': 3.0,  # Size of the velocity action
     'target_pos': np.array([[.0, .0, 1.0]]),
     'target_radius': 0.2,  # Radius of the target sphere
     'avoidance_radius': 5.,  # Radius of the avoidance sphere
@@ -67,7 +68,7 @@ if rl_algorithm == "PPO":
     'ctrl_freq': 30,
     'pyb_freq': 1*240,
     'action_size': 0.5,
-    'velocity_size': 5,
+    'velocity_size': 3.0,
     'target_pos': np.array([[.0, .0, 1.0]]),
     'target_radius': 0.2,  # Radius of the target sphere
     'avoidance_radius': 5.,  # Radius of the avoidance sphere
@@ -75,7 +76,7 @@ if rl_algorithm == "PPO":
     'episode_length': 8,  # seconds
     'eval_freq': 20,  # Evaluate every n episodes
     'eval_episodes' : 5,  # Number of episodes to evaluate
-    'learning_rate': 5e-4, 
+    'learning_rate': 1e-3, 
     'batch_size': 1024, # Should be a divisor of n_steps*n_envs
     'num_steps': 1024, # Number of steps in an episode before updating policy, actual update is n_steps*n_envs
     'nr_of_env': 1,  # Number of environments to train in parallel
@@ -89,17 +90,17 @@ if rl_algorithm == "PPO":
     'reward_sucess': 1.0,   # Positive reward for avoiding collision and returning to target
     'reward_end_outside_target': -0.75,  # Negative reward for ending outside the target
     'reward_truncation': -1.0,  # Negative reward for truncation
-    'reward_target_distance': -0.1,
+    'reward_target_distance': -0.01,
     'reward_target_distance_delta': 0.0, # Positive for rewarding moving towards target
     'reward_rpy': -0.0,  # Negative reward for angular velocity
     'reward_angular_velocity_delta': -0.0, # Negative reward for changing angle
     'reward_object_distance': -0.0,  # Negative reward for being close to the object
     'reward_object_distance_delta': 0.0, # Positive for rewarding moving away from object
-    'reward_action_difference': -0.015,
+    'reward_action_difference': -0.005,
     'reward_step': -0,
-    'reward_in_target': 0.0,
+    'reward_in_target': 0.25,
     'target_reward': 150000.0,  # Reward to stop training
-    'total_timesteps': int(3*1e6),  # Total timesteps to train
+    'total_timesteps': int(1*1e6),  # Total timesteps to train
     'gui': False,  # Whether to use GUI or not
     'obs_timestep': False, # Include timestep in observation
     'obs_obj_vel': False, # Include object velocity in observation
@@ -112,15 +113,21 @@ if __name__ == "__main__":
 
     time_taken = []
 
+    PPO = Train_PPO(parameters=parameters_PPO)
+
+    PPO.train()
+
+    input("Press enter...")
+
     if rl_algorithm == "PPO":
         test_param_learning_rate = [1e-3]
-        test_param_reward_target_distance = [0.005]
-        test_param_reward_in_target = [0.01]
-        test_param_reward_action_difference = [-0.005]
+        test_param_reward_target_distance = [0.003]
+        test_param_reward_in_target = [0.25]
+        test_param_reward_action_difference = [-0.01]
         test_param_clip_range = [0.2]
         test_param_action_size = [0.5]
         test_param_velocity_size = [3.0]
-        test_param_ctrl_freq = [30]
+        test_param_ctrl_freq = [30, 60]
 
         for learning_rate in test_param_learning_rate:
             parameters_PPO['learning_rate'] = learning_rate
@@ -151,8 +158,8 @@ if __name__ == "__main__":
                                         time_taken.append(PPO.train())
 
     if rl_algorithm == "DDPG":
-        test_param_reward_object_distance = [-0.5, -1.0, -1.5]
-        test_param_nr_of_env = [1, 4]
+        test_param_reward_object_distance = [-5.0, -10.0 ,-0.5, -1.0, -1.5]
+        test_param_nr_of_env = [1]
 
         for reward_object_distance in test_param_reward_object_distance:
             parameters_DDPG["reward_object_distance"] = reward_object_distance
