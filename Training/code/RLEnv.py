@@ -300,12 +300,12 @@ class RLEnv(BaseRLAviary):
 
             if (self.target_distance <= self.TARGET_RADIUS):
                 # If the drone is within the target radius, give a positive reward
-                #self.reward_target_distance = -self.target_distance**2 + self.REWARD_IN_TARGET_CONSTANT
-                self.reward_in_target = self.REWARD_IN_TARGET
+                self.reward_target_distance = -self.target_distance**2 + self.REWARD_IN_TARGET_CONSTANT
+                #self.reward_in_target = self.REWARD_IN_TARGET
             else:
                 # If the drone is outside the target radius, give a negative reward
-                self.reward_target_distance = self.REWARD_TARGET_DISTANCE * (self.target_distance**2)
-                #self.reward_target_distance = self.REWARD_TARGET_DISTANCE / (self.target_distance**2)
+                #self.reward_target_distance = self.REWARD_TARGET_DISTANCE * (self.target_distance**2)
+                self.reward_target_distance = self.REWARD_TARGET_DISTANCE / (self.target_distance**2)
                 # TODO, add target_distance_delta
             #self.reward_target_distance = self.REWARD_TARGET_DISTANCE * (self.target_distance)
             
@@ -323,7 +323,7 @@ class RLEnv(BaseRLAviary):
                 self.reward_action_difference = self.REWARD_ACTION_DIFFERENCE*np.linalg.norm(self.action_difference)
 
         #ret += self.reward_rpy
-        ret += self.reward_in_target
+        #ret += self.reward_in_target
         ret += self.reward_target_distance
         #ret += self.reward_object_distance
         #ret += self.reward_object_distance_delta
