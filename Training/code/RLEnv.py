@@ -55,7 +55,6 @@ class RLEnv(BaseRLAviary):
         self.REWARD_OBJECT_DISTANCE = parameters['reward_object_distance']
         self.REWARD_OBJECT_DISTANCE_DELTA = parameters['reward_object_distance_delta']
         self.REWARD_STEP = parameters['reward_step']
-        self.REWARD_IN_TARGET = parameters['reward_in_target']
         self.REWARD_ACTION_DIFFERENCE = parameters['reward_action_difference']
 
         self.OBS_TIMESTEP = parameters['obs_timestep']
@@ -130,7 +129,6 @@ class RLEnv(BaseRLAviary):
         self.visual_action_ids = []
 
         self.reward_rpy = 0.0
-        self.reward_in_target = 0.0
         self.reward_target_distance = 0.0
         self.reward_object_distance = 0.0
         self.reward_object_distance_delta = 0.0
@@ -250,7 +248,6 @@ class RLEnv(BaseRLAviary):
         ret = 0.0
 
         self.reward_rpy = 0.0
-        self.reward_in_target = 0.0
         self.reward_target_distance = 0.0
         self.reward_object_distance = 0.0
         self.reward_object_distance_delta = 0.0
@@ -297,7 +294,6 @@ class RLEnv(BaseRLAviary):
             if (self.target_distance <= self.TARGET_RADIUS):
                 # If the drone is within the target radius, give a positive reward
                 self.reward_target_distance = -self.target_distance**2 + self.REWARD_IN_TARGET_CONSTANT
-                #self.reward_in_target = self.REWARD_IN_TARGET
             else:
                 # If the drone is outside the target radius, give a negative reward
                 #self.reward_target_distance = self.REWARD_TARGET_DISTANCE * (self.target_distance**2)
@@ -319,7 +315,6 @@ class RLEnv(BaseRLAviary):
                 self.reward_action_difference = self.REWARD_ACTION_DIFFERENCE*np.linalg.norm(self.action_difference)
 
         #ret += self.reward_rpy
-        #ret += self.reward_in_target
         ret += self.reward_target_distance
         #ret += self.reward_object_distance
         #ret += self.reward_object_distance_delta
@@ -568,7 +563,7 @@ class RLEnv(BaseRLAviary):
         info = {"is_success": success,
                 "min_object_distance": getattr(self, "min_obj_distance" ,np.nan),
                 "max_target_distance": getattr(self, "max_target_distance", np.nan),
-                "final_drone_altitude": self.curr_drone_pos[2], # TODO: Can just send current alt
+                "final_drone_altitude": self.curr_drone_pos[2],
                 "final_target_distance": self.target_distance,
                 "out_of_bounds": self.truncation_reason == "out_of_bounds",
                 "orientation_out_of_bounds": self.truncation_reason == "orientation",
@@ -578,7 +573,6 @@ class RLEnv(BaseRLAviary):
                 "max_kf_pos_error": getattr(self, "max_kf_pos_error", np.nan),
                 "average_kf_vel_error": getattr(self, "average_kf_vel_error", np.nan),
                 "reward_rpy": self.reward_rpy,
-                "reward_in_target": self.reward_in_target,
                 "reward_target_distance": self.reward_target_distance,
                 "reward_object_distance": self.reward_object_distance,
                 "reward_object_distance_delta": self.reward_object_distance_delta,
