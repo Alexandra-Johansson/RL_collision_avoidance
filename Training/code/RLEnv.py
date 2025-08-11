@@ -250,7 +250,7 @@ class RLEnv(BaseRLAviary):
         self.reward_rpy = 0.0
         self.reward_target_distance = 0.0
         self.reward_object_distance = 0.0
-        self.reward_object_distance_delta = 0.0
+        self.reward_object_distance_delta = 0.0 #TODO: Use estimated velocity from kf instead
         self.reward_action_difference = 0.0
 
         prev_ang_vel = np.copy(self.curr_ang_vel)
@@ -271,6 +271,7 @@ class RLEnv(BaseRLAviary):
             ball_pos, _ = pb.getBasePositionAndOrientation(self.ball_list[i], physicsClientId=self.CLIENT)
             self.obj_distances[i] = np.linalg.norm(ball_pos[0:3] - self.curr_drone_pos)
 
+        '''
         # Check if the episode is terminated
         if self._computeTerminated():
             ret = self.REWARD_COLLISION
@@ -285,32 +286,25 @@ class RLEnv(BaseRLAviary):
                 # Negative reward for truncation
                 ret = self.REWARD_TRUNCATION
         # Else calculate the reward based on the states
+        '''
+        if False:
+            pass
         else:
             obj_distances_delta = np.sum(prev_obj_distances - self.obj_distances)
 
             # Reward based on factors
-            self.reward_rpy += self.REWARD_RPY * (self.curr_drone_rpy[0]**2 + self.curr_drone_rpy[1]**2)
+            #self.reward_rpy += self.REWARD_RPY * (self.curr_drone_rpy[0]**2 + self.curr_drone_rpy[1]**2)
 
             if (self.target_distance <= self.TARGET_RADIUS):
-                # If the drone is within the target radius, give a positive reward
                 self.reward_target_distance = -self.target_distance**2 + self.REWARD_IN_TARGET_CONSTANT
             else:
-                # If the drone is outside the target radius, give a negative reward
-                #self.reward_target_distance = self.REWARD_TARGET_DISTANCE * (self.target_distance**2)
                 self.reward_target_distance = self.REWARD_TARGET_DISTANCE / (self.target_distance**2)
                 # TODO, add target_distance_delta
-            #self.reward_target_distance = self.REWARD_TARGET_DISTANCE * (self.target_distance)
             
             # TODO, needs work before multiple objects are supported, change to loop trough all objects
             #if (any(self.obj_distances < self.AVOIDANCE_RADIUS)):
             #self.reward_object_distance = self.REWARD_OBJECT_DISTANCE / np.sum(self.obj_distances)
 
-            # 2. Negative reward based on if the object is moving towards the drone
-            if (obj_distances_delta < 0):
-                # If the object is to close, give a reward based on change in distance
-                self.reward_object_distance_delta = self.REWARD_OBJECT_DISTANCE_DELTA * (obj_distances_delta**2)
-
-            self.reward_action_difference = 0.0
             if self.OBS_ACTION_DIFFERENCE:
                 self.reward_action_difference = self.REWARD_ACTION_DIFFERENCE*np.linalg.norm(self.action_difference)
 
@@ -465,7 +459,7 @@ class RLEnv(BaseRLAviary):
             drone_rpy_vel = np.zeros((1, 3))
             drone_altitude = np.zeros((1, 1))
 
-            obs = self._getDroneStateVector(0)
+            obs = self._getDroneStateVector(self.DRONE_ID)
             drone_pos[0,:] = obs[0:3]
             drone_vel[0,:] = obs[10:13]
             drone_rpy[0,:] = obs[7:10]
