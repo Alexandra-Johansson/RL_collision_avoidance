@@ -216,12 +216,12 @@ class RLEnv(BaseRLAviary):
         self.curr_ang_vel = drone_state_vec[13:16] # Angular velocity
         self.obj_distances = np.zeros((self.NUM_OBJECTS, 1))
         self.prev_obj_pos = np.zeros((self.NUM_OBJECTS, 3))  # Previous object positions
-        if self.ACTION_TYPE == ActionType.PID: #TODO: Set size and only have two rows or the reset based on the size
-            self.curr_action = np.zeros((1, 3))  # Current action
-            self.prev_action = np.zeros((1, 3))  # Previous action for action difference observation
+        if self.ACTION_TYPE == ActionType.PID:
+            self.act_size = 3
         elif self.ACTION_TYPE == ActionType.VEL:
-            self.curr_action = np.zeros((1, 4))  
-            self.prev_action = np.zeros((1, 4))
+            self.act_size = 4
+        self.curr_action = np.zeros((1, self.act_size))  # Current action
+        self.prev_action = np.zeros((1, self.act_size))  # Previous action for action difference observation
         self.time_limit_reached = False
 
         self.min_obj_distance = np.inf
@@ -272,7 +272,6 @@ class RLEnv(BaseRLAviary):
         self.target_distance = np.linalg.norm(self.TARGET_POS[0] - self.curr_drone_pos)
 
         self.obj_distances = np.zeros((len(self.ball_list), 1))
-        # TODO, check more
         # Calculate the distance to each object
         for i in range(len(self.ball_list)):
             ball_pos, _ = pb.getBasePositionAndOrientation(self.ball_list[i], physicsClientId=self.CLIENT)
@@ -457,10 +456,6 @@ class RLEnv(BaseRLAviary):
 
         else:
             super()._observationSpace()
-
-    def _actionSpace(self):
-        # TODO, Check if this can be removed
-        return super()._actionSpace()
     
     def _computeObs(self):
         if self.OBS_TYPE == ObservationType.KIN and (self.ACT_TYPE == ActionType.PID or self.ACT_TYPE == ActionType.VEL):
@@ -535,7 +530,6 @@ class RLEnv(BaseRLAviary):
             if self.ACTION_TYPE == ActionType.VEL:
                 self.action_difference[0][3] = self.action_difference[0][3]/self.VELOCITY_SIZE
             
-            # TODO, Fix observation space for different observation types
             obs_dict = {
                     "Drone_velocity": drone_vel.flatten(),
                     "Drone_rpy": drone_rpy.flatten(),
@@ -565,7 +559,6 @@ class RLEnv(BaseRLAviary):
             return super()._computeObs()
 
     def _computeInfo(self):
-        # TODO, Clean up code
         success = False
         if getattr(self, "truncation_reason", None) == "time_limit":
             if (self.target_distance <= self.TARGET_RADIUS):
@@ -655,7 +648,6 @@ class RLEnv(BaseRLAviary):
         pos = self.getRandomPos()
 
         # Calculate force based on the position
-        # TODO, Check if this can be done in one step x0, y0, z0 = self.getRandomPos()
         x0, y0, z0 = pos
         target = self.TARGET_POS
         T = np.random.uniform(0.5,1.5) # Time to reach the target
@@ -681,9 +673,7 @@ class RLEnv(BaseRLAviary):
         x_pos = magnitude * math.cos(angle)
         y_pos = magnitude * math.sin(angle)
         z_pos = np.random.uniform(0.75, 1.25)
-        # TODO, Check if this can be removed
-        z_pos = 1.0
 
-        position = [x_pos, y_pos, z_pos]
+        position = x_pos, y_pos, z_pos
         
         return position
