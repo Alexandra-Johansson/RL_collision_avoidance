@@ -109,6 +109,7 @@ class Train_DDPG():
         time_end = time.time()
 
         model.save(self.filename+'/final_model.zip')
+        training_env.save(self.filename + "/final_vecnormalize.pkl")
         print(self.filename)
         print("Model saved")
 
