@@ -111,11 +111,11 @@ class RLEnv(BaseRLAviary):
         self.prev_obj_pos = np.zeros((self.NUM_OBJECTS, 3))  # Previous object positions
         
         if self.ACTION_TYPE == ActionType.PID:
-            self.curr_action = np.zeros((self.NUM_DRONES, 3))  # Current action
-            self.prev_action = np.zeros((self.NUM_DRONES, 3))  # Previous action
+            self.curr_action = np.zeros((1, 3))  # Current action
+            self.prev_action = np.zeros((1, 3))  # Previous action
         elif self.ACTION_TYPE == ActionType.VEL:
-            self.curr_action = np.zeros((self.NUM_DRONES, 4))
-            self.prev_action = np.zeros((self.NUM_DRONES, 4))
+            self.curr_action = np.zeros((1, 4))
+            self.prev_action = np.zeros((1, 4))
 
         self.visual_target_id = pb.createVisualShape(shapeType = pb.GEOM_SPHERE,
                              rgbaColor=[0.0, 1.0, 0.0, 0.5], 
@@ -217,11 +217,11 @@ class RLEnv(BaseRLAviary):
         self.obj_distances = np.zeros((self.NUM_OBJECTS, 1))
         self.prev_obj_pos = np.zeros((self.NUM_OBJECTS, 3))  # Previous object positions
         if self.ACTION_TYPE == ActionType.PID: #TODO: Set size and only have two rows or the reset based on the size
-            self.curr_action = np.zeros((self.NUM_DRONES, 3))  # Current action
-            self.prev_action = np.zeros((self.NUM_DRONES, 3))  # Previous action for action difference observation
+            self.curr_action = np.zeros((1, 3))  # Current action
+            self.prev_action = np.zeros((1, 3))  # Previous action for action difference observation
         elif self.ACTION_TYPE == ActionType.VEL:
-            self.curr_action = np.zeros((self.NUM_DRONES, 4))  
-            self.prev_action = np.zeros((self.NUM_DRONES, 4))
+            self.curr_action = np.zeros((1, 4))  
+            self.prev_action = np.zeros((1, 4))
         self.time_limit_reached = False
 
         self.min_obj_distance = np.inf
@@ -408,20 +408,18 @@ class RLEnv(BaseRLAviary):
                 action_difference_high = np.array([1.0, 1.0, 1.0, 1.0])
 
             # Add drone observation space
-            # TODO, Fix so only one drone is used
-            obs_drone_vel_lower_bound = np.array([vel_low for drone in range(self.NUM_DRONES)])
-            obs_drone_vel_upper_bound = np.array([vel_high for drone in range(self.NUM_DRONES)])
-            obs_drone_rpy_lower_bound = np.array([rpy_low for drone in range(self.NUM_DRONES)])
-            obs_drone_rpy_upper_bound = np.array([rpy_high for drone in range(self.NUM_DRONES)])
-            obs_drone_rpy_vel_lower_bound = np.array([rpy_vel_low for drone in range(self.NUM_DRONES)])
-            obs_drone_rpy_vel_upper_bound = np.array([rpy_vel_high for drone in range(self.NUM_DRONES)])
-            obs_altitude_lower_bound = np.array([altitude_low for drone in range(self.NUM_DRONES)])
-            obs_altitude_upper_bound = np.array([altitude_high for drone in range(self.NUM_DRONES)])
+            obs_drone_vel_lower_bound = np.array([vel_low])
+            obs_drone_vel_upper_bound = np.array([vel_high])
+            obs_drone_rpy_lower_bound = np.array([rpy_low])
+            obs_drone_rpy_upper_bound = np.array([rpy_high])
+            obs_drone_rpy_vel_lower_bound = np.array([rpy_vel_low])
+            obs_drone_rpy_vel_upper_bound = np.array([rpy_vel_high])
+            obs_altitude_lower_bound = np.array([altitude_low])
+            obs_altitude_upper_bound = np.array([altitude_high])
 
             # Add target observation space
-            # TODO, Fix so only one drone is used
-            obs_target_pos_lower_bound = np.array([target_pos_low for drone in range(self.NUM_DRONES)])
-            obs_target_pos_upper_bound = np.array([target_pos_high for drone in range(self.NUM_DRONES)])
+            obs_target_pos_lower_bound = np.array([target_pos_low])
+            obs_target_pos_upper_bound = np.array([target_pos_high])
 
             # Add timestep observation space
             timestep_lower_bound = np.array([timestep_low])
@@ -434,8 +432,8 @@ class RLEnv(BaseRLAviary):
             obs_obj_vel_upper_bound = np.array([obj_vel_high for obj in range(self.NUM_OBJECTS)])
 
             # Add action difference observation space
-            obs_action_difference_lower_bound = np.array([action_difference_low for drone in range(self.NUM_DRONES)])
-            obs_action_difference_upper_bound = np.array([action_difference_high for drone in range(self.NUM_DRONES)])
+            obs_action_difference_lower_bound = np.array([action_difference_low])
+            obs_action_difference_upper_bound = np.array([action_difference_high])
 
             obs_dict = {
                     "Drone_velocity": spaces.Box(low=obs_drone_vel_lower_bound.flatten(), high=obs_drone_vel_upper_bound.flatten(), dtype=np.float64),
@@ -467,29 +465,25 @@ class RLEnv(BaseRLAviary):
     def _computeObs(self):
         if self.OBS_TYPE == ObservationType.KIN and (self.ACT_TYPE == ActionType.PID or self.ACT_TYPE == ActionType.VEL):
             if self.OBS_NOISE:
-                # TODO, Fix so only one drone is used
-                #noise_drone = np.random.normal(0, self.OBS_NOISE_STD, (self.NUM_DRONES, 3))
+                #noise_drone = np.random.normal(0, self.OBS_NOISE_STD, (1, 3))
                 noise_obj = np.random.normal(0, self.OBS_NOISE_STD, (self.NUM_OBJECTS, 3))
             else:
-                # TODO, Fix so only one drone is used
-                #noise_drone = np.zeros((self.NUM_DRONES, 3))
+                #noise_drone = np.zeros((1, 3))
                 noise_obj = np.zeros((self.NUM_OBJECTS, 3))
 
             # Compute drone observations
-            # TODO, Fix so only one drone is used
-            drone_pos = np.zeros((self.NUM_DRONES, 3))
-            drone_vel = np.zeros((self.NUM_DRONES, 3))
-            drone_rpy = np.zeros((self.NUM_DRONES, 3))
-            drone_rpy_vel = np.zeros((self.NUM_DRONES, 3))
-            drone_altitude = np.zeros((self.NUM_DRONES, 1))
-            # TODO, Fix so only one drone is used
-            for i in range(self.NUM_DRONES):
-                obs = self._getDroneStateVector(i)
-                drone_pos[i,:] = obs[0:3]
-                drone_vel[i,:] = obs[10:13]
-                drone_rpy[i,:] = obs[7:10]
-                drone_rpy_vel[i,:] = obs[13:16]
-                drone_altitude[i, :] = obs[2]
+            drone_pos = np.zeros((1, 3))
+            drone_vel = np.zeros((1, 3))
+            drone_rpy = np.zeros((1, 3))
+            drone_rpy_vel = np.zeros((1, 3))
+            drone_altitude = np.zeros((1, 1))
+
+            obs = self._getDroneStateVector(1)
+            drone_pos[1,:] = obs[0:3]
+            drone_vel[1,:] = obs[10:13]
+            drone_rpy[1,:] = obs[7:10]
+            drone_rpy_vel[1,:] = obs[13:16]
+            drone_altitude[1, :] = obs[2]
 
             # Compute object observations
             obj_pos = np.zeros((self.NUM_OBJECTS, 3))
@@ -525,16 +519,12 @@ class RLEnv(BaseRLAviary):
                         obj_pos = obj_pos_pb
                         obj_vel = obj_vel_pb
 
-            # TODO, Fix so only one drone is used
-            for i in range(self.NUM_DRONES):
-                for j in range(self.NUM_OBJECTS):
-                    obj_pos[j, :] = obj_pos[j, :] - drone_pos[i, :]
+            for j in range(self.NUM_OBJECTS):
+                obj_pos[j, :] = obj_pos[j, :] - drone_pos[1, :]
 
             # Compute target observation
-            # TODO, Fix so only one drone is used
-            target_pos = np.zeros((self.NUM_DRONES, 3))
-            for i in range(self.NUM_DRONES):
-                target_pos[i,:] = self.TARGET_POS - drone_pos[i,:]
+            target_pos = np.zeros((1, 3))
+            target_pos[1,:] = self.TARGET_POS - drone_pos[1,:]
 
             # Compute timestep observation
             timestep = np.array([self.step_counter])
@@ -609,13 +599,12 @@ class RLEnv(BaseRLAviary):
         return info  
 
     def reset_drone(self):
-        # TODO, Fix so only one drone is used
-        self.pos = np.zeros((self.NUM_DRONES, 3))
-        self.quat = np.zeros((self.NUM_DRONES, 4))
+        self.pos = np.zeros((1, 3))
+        self.quat = np.zeros((1, 4))
         self.quat[0,3] = 1
-        self.rpy = np.zeros((self.NUM_DRONES, 3))
-        self.vel = np.zeros((self.NUM_DRONES, 3))
-        self.curr_ang_vel = np.zeros((self.NUM_DRONES, 3))
+        self.rpy = np.zeros((1, 3))
+        self.vel = np.zeros((1, 3))
+        self.curr_ang_vel = np.zeros((1, 3))
 
         pb.resetBasePositionAndOrientation(
             self.DRONE_IDS[self.DRONE_ID],
