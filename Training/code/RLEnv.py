@@ -672,7 +672,7 @@ class RLEnv(BaseRLAviary):
         magnitude = np.random.uniform(2, 4)
         x_pos = magnitude * math.cos(angle)
         y_pos = magnitude * math.sin(angle)
-        z_pos = np.random.uniform(0.75, 1.25)
+        z_pos = np.random.uniform(0.75, 1.75)
 
         position = x_pos, y_pos, z_pos
         
