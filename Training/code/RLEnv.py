@@ -138,7 +138,6 @@ class RLEnv(BaseRLAviary):
 
         self.min_obj_distance = np.inf
         self.max_target_distance = 0.0
-        self.final_drone_alt = np.nan
         self.max_kf_pos_error = 0.0
         self.average_kf_vel_error = 0.0
         self.average_kf_vel_error_counter = 1
@@ -186,7 +185,6 @@ class RLEnv(BaseRLAviary):
         # Compute info for logging
         self.min_obj_distance = min(self.min_obj_distance, np.linalg.norm(obs["Object_position"]))
         self.max_target_distance = max(self.max_target_distance, np.linalg.norm(obs["Target_position"]))
-        self.final_drone_alt = self.curr_drone_pos[2]
 
         # If GUI is enabled, sleep to visualize the simulation properly
         if self.GUI:
@@ -226,7 +224,6 @@ class RLEnv(BaseRLAviary):
 
         self.min_obj_distance = np.inf
         self.max_target_distance = 0.0
-        self.final_drone_alt = np.nan
         self.max_kf_pos_error = 0.0
         self.average_kf_vel_error = 0.0
         self.average_kf_vel_error_counter = 1
@@ -563,15 +560,15 @@ class RLEnv(BaseRLAviary):
         if getattr(self, "truncation_reason", None) == "time_limit":
             if (self.target_distance <= self.TARGET_RADIUS):
                 success = True
-        
+        '''
         big_yaw_detected = False
         if abs(self.curr_drone_rpy[2]) > 0.9:
             big_yaw_detected = True
-  
+        '''
         info = {"is_success": success,
                 "min_object_distance": getattr(self, "min_obj_distance" ,np.nan),
                 "max_target_distance": getattr(self, "max_target_distance", np.nan),
-                "final_drone_altitude": getattr(self, "final_drone_alt", np.nan), # TODO: Can just send current alt
+                "final_drone_altitude": self.curr_drone_pos[2], # TODO: Can just send current alt
                 "final_target_distance": self.target_distance,
                 "out_of_bounds": self.truncation_reason == "out_of_bounds",
                 "orientation_out_of_bounds": self.truncation_reason == "orientation",
@@ -586,7 +583,7 @@ class RLEnv(BaseRLAviary):
                 "reward_object_distance": self.reward_object_distance,
                 "reward_object_distance_delta": self.reward_object_distance_delta,
                 "reward_action_difference": self.reward_action_difference,
-                "big_yaw_detected": big_yaw_detected
+                #"big_yaw_detected": big_yaw_detected
                 }
 
         return info  
