@@ -31,7 +31,7 @@ class Train_PPO():
         if not os.path.exists(self.filename):
             os.makedirs(self.filename)
 
-        self.plot = Plot(self.filename)
+        self.plot = Plot(self.filename, "PPO")
 
         Param = Txt_file(self.filename)
         Param.save_parameters(self.parameters)

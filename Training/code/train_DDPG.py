@@ -32,7 +32,7 @@ class Train_DDPG():
         if not os.path.exists(self.filename):
             os.makedirs(self.filename)
 
-        self.plot = Plot(self.filename)
+        self.plot = Plot(self.filename, "DDPG")
 
         Param = Txt_file(self.filename)
         Param.save_parameters(self.parameters)
