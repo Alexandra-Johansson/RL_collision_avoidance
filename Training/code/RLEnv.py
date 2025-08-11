@@ -478,12 +478,12 @@ class RLEnv(BaseRLAviary):
             drone_rpy_vel = np.zeros((1, 3))
             drone_altitude = np.zeros((1, 1))
 
-            obs = self._getDroneStateVector(1)
-            drone_pos[1,:] = obs[0:3]
-            drone_vel[1,:] = obs[10:13]
-            drone_rpy[1,:] = obs[7:10]
-            drone_rpy_vel[1,:] = obs[13:16]
-            drone_altitude[1, :] = obs[2]
+            obs = self._getDroneStateVector(0)
+            drone_pos[0,:] = obs[0:3]
+            drone_vel[0,:] = obs[10:13]
+            drone_rpy[0,:] = obs[7:10]
+            drone_rpy_vel[0,:] = obs[13:16]
+            drone_altitude[0, :] = obs[2]
 
             # Compute object observations
             obj_pos = np.zeros((self.NUM_OBJECTS, 3))
@@ -520,11 +520,11 @@ class RLEnv(BaseRLAviary):
                         obj_vel = obj_vel_pb
 
             for j in range(self.NUM_OBJECTS):
-                obj_pos[j, :] = obj_pos[j, :] - drone_pos[1, :]
+                obj_pos[j, :] = obj_pos[j, :] - drone_pos[0, :]
 
             # Compute target observation
             target_pos = np.zeros((1, 3))
-            target_pos[1,:] = self.TARGET_POS - drone_pos[1,:]
+            target_pos[0,:] = self.TARGET_POS - drone_pos[0,:]
 
             # Compute timestep observation
             timestep = np.array([self.step_counter])
