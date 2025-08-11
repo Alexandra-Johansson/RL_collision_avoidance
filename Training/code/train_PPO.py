@@ -74,9 +74,6 @@ class Train_PPO():
                     tensorboard_log = self.filename + '/tensorboard_logs/',
                     verbose = 1)
 
-        #callback_on_best = StopTrainingOnRewardThreshold(reward_threshold = self.parameters['target_reward'],
-        #                                                verbose=1)
-
         save_vec_norm_callback = SaveVecNormalizeCallback(vec_env = eval_env,
                                                           save_dir = self.filename,
                                                           verbose = 1)
