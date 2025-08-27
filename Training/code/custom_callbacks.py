@@ -1,7 +1,8 @@
-import numpy as np
 import os
 
+import numpy as np
 from stable_baselines3.common.callbacks import BaseCallback
+
 
 class CustomTensorboardCallback(BaseCallback):
     def __init__(self, verbose=0):
@@ -200,7 +201,7 @@ class SaveVecNormalizeCallback(BaseCallback):
         return True
 
     def _on_event(self):
-        path = os.path.join(self.save_dir, "best_vecnormalize.pkl")
+        path = os.path.join(self.save_dir, "/best_vecnormalize.pkl")
         self.vec_env.save(path)
         if self.verbose > 0:
             print(f"Saved VecNormaliz to {path}")
