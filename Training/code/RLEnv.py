@@ -271,7 +271,7 @@ class RLEnv(BaseRLAviary):
             ball_pos, _ = pb.getBasePositionAndOrientation(self.ball_list[i], physicsClientId=self.CLIENT)
             self.obj_distances[i] = np.linalg.norm(ball_pos[0:3] - self.curr_drone_pos)
 
-        '''
+        
         # Check if the episode is terminated
         if self._computeTerminated():
             ret = self.REWARD_COLLISION
@@ -286,7 +286,7 @@ class RLEnv(BaseRLAviary):
                 # Negative reward for truncation
                 ret = self.REWARD_TRUNCATION
         # Else calculate the reward based on the states
-        '''
+        
         if False:
             pass
         else:
