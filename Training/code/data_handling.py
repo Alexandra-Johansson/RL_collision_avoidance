@@ -43,8 +43,9 @@ class Txt_file:
         return param
 
 class Plot:
-    def __init__(self, filename):
+    def __init__(self, filename, model_type):
         self.filename = filename
+        self.model_type = model_type
 
         self.plot_path = os.path.join(self.filename, 'plots')
         if not os.path.exists(self.plot_path):
@@ -86,7 +87,7 @@ class Plot:
         plt.show()
 
     def tensorboard(self):
-        tensorboard_filename = os.path.join(self.filename, 'tensorboard_logs/PPO_1')
+        tensorboard_filename = os.path.join(self.filename, 'tensorboard_logs/' + self.model_type + '_1')
         tb = program.TensorBoard()
         tb.configure(argv=[None, '--logdir', tensorboard_filename])
         url = tb.launch()

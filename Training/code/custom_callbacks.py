@@ -131,15 +131,6 @@ class CustomTensorboardCallback(BaseCallback):
         if reward_rpys:
             mean_reward_rpy = np.mean(reward_rpys)
             self.logger.record("custom/mean_reward_rpy", mean_reward_rpy)
-
-        reward_in_targets = [
-            info["reward_in_target"]
-            for info in self.reward_infos
-            if info is not None and "reward_in_target" in info
-        ]
-        if reward_in_targets:
-            mean_reward_in_target = np.mean(reward_in_targets)
-            self.logger.record("custom/mean_reward_in_target", mean_reward_in_target)
         
         reward_target_distances = [
             info["reward_target_distance"]

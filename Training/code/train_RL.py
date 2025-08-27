@@ -65,21 +65,21 @@ if rl_algorithm == "PPO":
     'action_type': ActionType.PID,
     'num_objects': 1,  # Number of balls to add
     'initial_xyzs': np.array([[.0, .0, 1.0]]),
-    'ctrl_freq': 30,
+    'ctrl_freq': 60,
     'pyb_freq': 1*240,
     'action_size': 0.5,
     'velocity_size': 3.0,
     'target_pos': np.array([[.0, .0, 1.0]]),
-    'target_radius': 0.2,  # Radius of the target sphere
+    'target_radius': 0.1,  # Radius of the target sphere
     'avoidance_radius': 5.,  # Radius of the avoidance sphere
     'critical_safety_distance': 0.2,
-    'episode_length': 8,  # seconds
+    'episode_length': 6,  # seconds
     'eval_freq': 20,  # Evaluate every n episodes
     'eval_episodes' : 5,  # Number of episodes to evaluate
     'learning_rate': 1e-3, 
     'batch_size': 1024, # Should be a divisor of n_steps*n_envs
     'num_steps': 1024, # Number of steps in an episode before updating policy, actual update is n_steps*n_envs
-    'nr_of_env': 1,  # Number of environments to train in parallel
+    'nr_of_env': 1,  # Number of environments to train in parallel, NOT CURRENTLY WORKING for multiple environments
     'num_epochs': 5,
     'entropy_coefficient': 0.0,
     'obs_noise': False,  # Add noise to the observations
@@ -90,17 +90,17 @@ if rl_algorithm == "PPO":
     'reward_sucess': 1.0,   # Positive reward for avoiding collision and returning to target
     'reward_end_outside_target': -0.75,  # Negative reward for ending outside the target
     'reward_truncation': -1.0,  # Negative reward for truncation
-    'reward_target_distance': -0.01,
+    'reward_target_distance': 0.003,
     'reward_target_distance_delta': 0.0, # Positive for rewarding moving towards target
     'reward_rpy': -0.0,  # Negative reward for angular velocity
     'reward_angular_velocity_delta': -0.0, # Negative reward for changing angle
     'reward_object_distance': -0.0,  # Negative reward for being close to the object
     'reward_object_distance_delta': 0.0, # Positive for rewarding moving away from object
-    'reward_action_difference': -0.005,
+    'reward_action_difference': -0.1,
     'reward_step': -0,
     'reward_in_target': 0.25,
     'target_reward': 150000.0,  # Reward to stop training
-    'total_timesteps': int(1*1e6),  # Total timesteps to train
+    'total_timesteps': int(2*1e6),  # Total timesteps to train
     'gui': False,  # Whether to use GUI or not
     'obs_timestep': False, # Include timestep in observation
     'obs_obj_vel': False, # Include object velocity in observation
@@ -113,21 +113,17 @@ if __name__ == "__main__":
 
     time_taken = []
 
-    PPO = Train_PPO(parameters=parameters_PPO)
-
-    PPO.train()
-
-    input("Press enter...")
-
     if rl_algorithm == "PPO":
         test_param_learning_rate = [1e-3]
-        test_param_reward_target_distance = [0.003]
+        test_param_reward_target_distance = [0.001]
         test_param_reward_in_target = [0.25]
-        test_param_reward_action_difference = [-0.01]
+        test_param_reward_action_difference = [-0.1]
         test_param_clip_range = [0.2]
         test_param_action_size = [0.5]
         test_param_velocity_size = [3.0]
-        test_param_ctrl_freq = [30, 60]
+        test_param_ctrl_freq = [30]
+        test_param_nr_of_env = [1]
+        test_param_action_type = [ActionType.VEL]
 
         for learning_rate in test_param_learning_rate:
             parameters_PPO['learning_rate'] = learning_rate
@@ -153,22 +149,42 @@ if __name__ == "__main__":
                                     for ctrl_freq in test_param_ctrl_freq:
                                         parameters_PPO['ctrl_freq'] = ctrl_freq
 
-                                        PPO = Train_PPO(parameters=parameters_PPO)
+                                        for nr_of_env in test_param_nr_of_env:
+                                            parameters_PPO['nr_of_env'] = nr_of_env
 
-                                        time_taken.append(PPO.train())
+                                            for action_type in test_param_action_type:
+                                                parameters_PPO['action_type'] = action_type
+
+                                                PPO = Train_PPO(parameters=parameters_PPO)
+
+                                                time_taken.append(PPO.train())
 
     if rl_algorithm == "DDPG":
-        test_param_reward_object_distance = [-5.0, -10.0 ,-0.5, -1.0, -1.5]
-        test_param_nr_of_env = [1]
+        test_param_reward_object_distance = [0, -5.0]
+        test_param_reward_success = [0, 1000]
+        test_param_obs_noise = [True, False]
+        test_param_obs_noise_std = [0.05, 0.1, 0.5]
 
         for reward_object_distance in test_param_reward_object_distance:
             parameters_DDPG["reward_object_distance"] = reward_object_distance
 
-            for nr_of_env in test_param_nr_of_env:
-                parameters_DDPG["nr_of_env"] = nr_of_env
+            for reward_sucess in test_param_reward_success:
+                parameters_DDPG["reward_sucess"] = reward_sucess
 
-                DDPG = Train_DDPG(parameters = parameters_DDPG)
+                for obs_noise in test_param_obs_noise:
+                    parameters_DDPG["obs_noise"] = obs_noise
 
-                time_taken.append(DDPG.train())
+                    if obs_noise:
+                        for obs_noise_std in test_param_obs_noise_std:
+                            parameters_DDPG["obs_noise_std"] = obs_noise_std
+
+                            DDPG = Train_DDPG(parameters = parameters_DDPG)
+
+                            time_taken.append(DDPG.train())
+
+                    else:
+                        DDPG = Train_DDPG(parameters = parameters_DDPG)
+
+                        time_taken.append(DDPG.train())
         
     print(time_taken)

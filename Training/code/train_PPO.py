@@ -31,7 +31,7 @@ class Train_PPO():
         if not os.path.exists(self.filename):
             os.makedirs(self.filename)
 
-        self.plot = Plot(self.filename)
+        self.plot = Plot(self.filename, "PPO")
 
         Param = Txt_file(self.filename)
         Param.save_parameters(self.parameters)
@@ -73,9 +73,6 @@ class Train_PPO():
                     ent_coef = self.parameters['entropy_coefficient'],
                     tensorboard_log = self.filename + '/tensorboard_logs/',
                     verbose = 1)
-
-        #callback_on_best = StopTrainingOnRewardThreshold(reward_threshold = self.parameters['target_reward'],
-        #                                                verbose=1)
 
         save_vec_norm_callback = SaveVecNormalizeCallback(vec_env = eval_env,
                                                           save_dir = self.filename,

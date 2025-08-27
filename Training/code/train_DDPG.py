@@ -32,7 +32,7 @@ class Train_DDPG():
         if not os.path.exists(self.filename):
             os.makedirs(self.filename)
 
-        self.plot = Plot(self.filename)
+        self.plot = Plot(self.filename, "DDPG")
 
         Param = Txt_file(self.filename)
         Param.save_parameters(self.parameters)
@@ -109,6 +109,7 @@ class Train_DDPG():
         time_end = time.time()
 
         model.save(self.filename+'/final_model.zip')
+        training_env.save(self.filename + "/final_vecnormalize.pkl")
         print(self.filename)
         print("Model saved")
 
