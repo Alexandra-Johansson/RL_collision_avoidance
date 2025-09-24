@@ -377,8 +377,8 @@ class RLEnv(BaseRLAviary):
 
     def _observationSpace(self):
         if self.OBS_TYPE == ObservationType.KIN and (self.ACT_TYPE == ActionType.PID or self.ACT_TYPE == ActionType.VEL):
-            vel_low = np.array([-2,-2,-2])
-            vel_high = np.array([2,2,2])
+            vel_low = np.array(-5*np.ones(3))
+            vel_high = np.array(5*np.ones(3))
             rpy_low = np.array(-0.9*np.ones(3))
             rpy_high = np.array(0.9*np.ones(3))
             rpy_vel_low = np.array([-10, -10, -6])
@@ -386,23 +386,27 @@ class RLEnv(BaseRLAviary):
             altitude_low = np.array([-0.5])
             altitude_high = np.array([10.0])
 
-            obj_pos_low = np.array([-5.0, -5.0])
-            obj_pos_high = np.array([5.0, 5.0])
-            obj_vel_low = np.array([-20, -20, -20])
-            obj_vel_high = np.array([20, 20, 20])
+            if self.SRT:
+                obj_pos_low = np.array(-5*np.ones(2))
+                obj_pos_high = np.array(5*np.ones(2))
+            else:
+                obj_pos_low = np.array(-5*np.ones(3))
+                obj_pos_high = np.array(5*np.ones(3))
+            obj_vel_low = np.array(-20*np.ones(3))
+            obj_vel_high = np.array(20*np.ones(3))
             
-            target_pos_low = np.array([-5.0, -5.0, -5.0])
-            target_pos_high = np.array([5.0, 5.0, 5.0])
+            target_pos_low = np.array(-5*np.ones(3))
+            target_pos_high = np.array(5*np.ones(3))
 
             timestep_low = np.array([0])
             timestep_high = np.array([self.EPISODE_LEN*self.PYB_FREQ + 1])
 
             if self.ACTION_TYPE == ActionType.PID:
-                action_difference_low = np.array([-1.0, -1.0, -1.0])
-                action_difference_high = np.array([1.0, 1.0, 1.0])
+                action_difference_low = np.array(-1*np.ones(3))
+                action_difference_high = np.array(1*np.ones(3))
             elif self.ACTION_TYPE == ActionType.VEL:
-                action_difference_low = np.array([-1.0, -1.0, -1.0, -1.0])
-                action_difference_high = np.array([1.0, 1.0, 1.0, 1.0])
+                action_difference_low = np.array([-1.0, -1.0, -1.0, -5.0])
+                action_difference_high = np.array([1.0, 1.0, 1.0, 5.0])
 
             # Add drone observation space
             obs_drone_vel_lower_bound = np.array([vel_low])
@@ -480,7 +484,10 @@ class RLEnv(BaseRLAviary):
 
             # Compute object observations
             obj_pos = np.zeros((self.NUM_OBJECTS, 3))
-            obj_pos2D = np.zeros((self.NUM_OBJECTS, 2))
+            if self.SRT:
+                obj_pos_return = np.zeros((self.NUM_OBJECTS, 2))
+            else:
+                obj_pos_return = np.zeros((self.NUM_OBJECTS, 3))
             obj_vel = np.zeros((self.NUM_OBJECTS, 3))
             obj_pos_pb = np.zeros((self.NUM_OBJECTS, 3))
             obj_vel_pb = np.zeros((self.NUM_OBJECTS, 3))
@@ -519,8 +526,11 @@ class RLEnv(BaseRLAviary):
             for j in range(self.NUM_OBJECTS):
                 obj_pos[j, :] = obj_pos[j, :] - drone_pos[0, :]
                 
-                obj_pos[i, 0:3] = self.rotate_vector_to_x_axis(obj_pos[i, 0:3])
-                obj_pos2D[i, :] = np.delete(obj_pos[i, :], 1)
+                if self.SRT:
+                    obj_pos[i, 0:3] = self.rotate_vector_to_x_axis(obj_pos[i, 0:3])
+                    obj_pos_return = np.delete(obj_pos[i, :], 1)
+                else:
+                    obj_pos_return = np.copy(obj_pos)
 
             # Compute target observation
             target_pos = np.zeros((1, 3))
@@ -535,13 +545,21 @@ class RLEnv(BaseRLAviary):
             if self.ACTION_TYPE == ActionType.VEL:
                 self.action_difference[0][3] = self.action_difference[0][3]/self.VELOCITY_SIZE
             
+            # If using SRT, rotate all other angle dependent states
+            if self.SRT:
+                drone_vel = self.rotate_3D_vector(drone_vel)
+                drone_rpy = self.rotate_euler_angles(drone_rpy)
+                drone_rpy_vel = self.rotate_3D_vector(drone_rpy_vel)
+                target_pos = self.rotate_3D_vector(target_pos)
+                obj_pos_return = self.rotate_3D_vector(obj_pos_return)
+
             obs_dict = {
                     "Drone_velocity": drone_vel.flatten(),
                     "Drone_rpy": drone_rpy.flatten(),
                     "Drone_rpy_velocity": drone_rpy_vel.flatten(),
                     "Drone_altitude": drone_altitude.flatten(),
                     "Target_position": target_pos.flatten(),
-                    "Object_position": obj_pos2D.flatten(),
+                    "Object_position": obj_pos_return.flatten(),
                     "Object_position_t-1": self.prev_obj_pos.flatten()
                 }
 
@@ -555,8 +573,7 @@ class RLEnv(BaseRLAviary):
                 obs_dict["Action_difference"] = abs(self.action_difference).flatten()
 
             # Store current object positions for next step
-            for i in range(self.NUM_OBJECTS):
-                self.prev_obj_pos[i, :] = obj_pos2D[i, :]
+            self.prev_obj_pos = obj_pos_return
 
             return obs_dict
 
@@ -714,3 +731,31 @@ class RLEnv(BaseRLAviary):
         ])
 
         return R @ v
+    
+    def rotate_3D_vector(self, v):
+        v = np.array(v)
+
+        cos_t = np.cos(-self.rot_angle)
+        sin_t = np.sin(-self.rot_angle)
+        R = np.array([
+            [cos_t, -sin_t, 0],
+            [sin_t, cos_t,  0],
+            [0,     0,      1]
+        ])
+
+        return R @ v
+    
+    def rotate_euler_angles(self, angles):
+        cos_t = np.cos(-self.rot_angle)
+        sin_t = np.sin(-self.rot_angle)
+        R = np.array([
+            [cos_t, -sin_t, 0],
+            [sin_t, cos_t,  0],
+            [0,     0,      1]
+        ])
+
+        R_quaternion = pb.getQuaternionFromMatrix(R.flatten().tolist())
+        angles_quaternion = pb.getQuaternionFromEuler(angles)
+        new_quaternion, _ = pb.multiplyTransforms([0, 0, 0], R_quaternion, [0, 0, 0], angles_quaternion)
+        
+        return pb.getEulerFromQuaternion(new_quaternion)
