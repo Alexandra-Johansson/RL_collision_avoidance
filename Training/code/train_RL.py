@@ -47,7 +47,9 @@ if rl_algorithm == "DDPG":
     'reward_in_target': 1.0,
     'target_reward': 150000.0,  # Reward to stop training
     'total_timesteps': int(3*1e6),  # Total timesteps to train
+    'space_reduction_transformation': True,
     'gui': False,  # Whether to use GUI or not
+    'record': False, # Whether to record simulation, see gym-pybullet-drones git repository
     'obs_timestep': False, # Include timestep in observation
     'obs_obj_vel': False, # Include object velocity in observation
     'obs_kf': False, # Include kalmanfilter estimates in observation, otherwise use PyBullet data
@@ -73,7 +75,7 @@ if rl_algorithm == "PPO":
     'target_radius': 0.1,  # Radius of the target sphere
     'avoidance_radius': 5.,  # Radius of the avoidance sphere
     'critical_safety_distance': 0.2,
-    'episode_length': 6,  # seconds
+    'episode_length': 4,  # seconds
     'eval_freq': 20,  # Evaluate every n episodes
     'eval_episodes' : 5,  # Number of episodes to evaluate
     'learning_rate': 1e-3, 
@@ -82,8 +84,8 @@ if rl_algorithm == "PPO":
     'nr_of_env': 1,  # Number of environments to train in parallel, NOT CURRENTLY WORKING for multiple environments
     'num_epochs': 5,
     'entropy_coefficient': 0.0,
-    'obs_noise': False,  # Add noise to the observations
-    'obs_noise_std': 0.05,  # Standard deviation of the noise
+    'obs_noise': True,  # Add noise to the observations
+    'obs_noise_std': 0.0,  # Standard deviation of the noise
     'kf_process_noise': 1e-2,
     'kf_measurement_noise': 1e-6,
     'reward_collision': -1.0,   # Negative reward for collision
@@ -101,7 +103,9 @@ if rl_algorithm == "PPO":
     'reward_in_target': 0.25,
     'target_reward': 150000.0,  # Reward to stop training
     'total_timesteps': int(2*1e6),  # Total timesteps to train
+    'space_reduction_transformation': True,
     'gui': False,  # Whether to use GUI or not
+    'record': False, # Whether to record simulation, see gym-pybullet-drones git repository
     'obs_timestep': False, # Include timestep in observation
     'obs_obj_vel': False, # Include object velocity in observation
     'obs_kf': False, # Include kalmanfilter estimates in observation, otherwise use PyBullet data
@@ -115,15 +119,17 @@ if __name__ == "__main__":
 
     if rl_algorithm == "PPO":
         test_param_learning_rate = [1e-3]
-        test_param_reward_target_distance = [0.001]
-        test_param_reward_in_target = [0.25]
-        test_param_reward_action_difference = [-0.1]
+        test_param_reward_target_distance = [0.004]
+        test_param_reward_object_distance = [-0.2]
+        test_param_reward_in_target = [0]
+        test_param_reward_action_difference = [-0.2]
         test_param_clip_range = [0.2]
-        test_param_action_size = [0.5]
+        test_param_action_size = [0.3]
         test_param_velocity_size = [3.0]
         test_param_ctrl_freq = [30]
         test_param_nr_of_env = [1]
-        test_param_action_type = [ActionType.VEL]
+        test_param_action_type = [ActionType.PID]
+        test_param_obs_noise_std = [0.0,0.0,0.0]
 
         for learning_rate in test_param_learning_rate:
             parameters_PPO['learning_rate'] = learning_rate
@@ -131,33 +137,39 @@ if __name__ == "__main__":
             for reward_target_distance in test_param_reward_target_distance:
                 parameters_PPO['reward_target_distance'] = reward_target_distance
 
-                for reward_in_target in test_param_reward_in_target:
-                    parameters_PPO['reward_in_target'] = reward_in_target
+                for reward_object_distance in test_param_reward_object_distance:
+                    parameters_PPO['reward_object_distance'] = reward_object_distance
 
-                    for reward_action_difference in test_param_reward_action_difference:
-                        parameters_PPO['reward_action_difference'] = reward_action_difference
+                    for reward_in_target in test_param_reward_in_target:
+                        parameters_PPO['reward_in_target'] = reward_in_target
 
-                        for clip_range in test_param_clip_range:
-                            parameters_PPO['clip_range'] = clip_range
+                        for reward_action_difference in test_param_reward_action_difference:
+                            parameters_PPO['reward_action_difference'] = reward_action_difference
 
-                            for action_size in test_param_action_size:
-                                parameters_PPO['action_size'] = action_size
+                            for clip_range in test_param_clip_range:
+                                parameters_PPO['clip_range'] = clip_range
 
-                                for velocity_size in test_param_velocity_size:
-                                    parameters_PPO['velocity_size'] = velocity_size
+                                for action_size in test_param_action_size:
+                                    parameters_PPO['action_size'] = action_size
 
-                                    for ctrl_freq in test_param_ctrl_freq:
-                                        parameters_PPO['ctrl_freq'] = ctrl_freq
+                                    for velocity_size in test_param_velocity_size:
+                                        parameters_PPO['velocity_size'] = velocity_size
 
-                                        for nr_of_env in test_param_nr_of_env:
-                                            parameters_PPO['nr_of_env'] = nr_of_env
+                                        for ctrl_freq in test_param_ctrl_freq:
+                                            parameters_PPO['ctrl_freq'] = ctrl_freq
 
-                                            for action_type in test_param_action_type:
-                                                parameters_PPO['action_type'] = action_type
+                                            for nr_of_env in test_param_nr_of_env:
+                                                parameters_PPO['nr_of_env'] = nr_of_env
 
-                                                PPO = Train_PPO(parameters=parameters_PPO)
+                                                for action_type in test_param_action_type:
+                                                    parameters_PPO['action_type'] = action_type
 
-                                                time_taken.append(PPO.train())
+                                                    for obs_noise_std in test_param_obs_noise_std:
+                                                        parameters_PPO['obs_noise_std'] = obs_noise_std
+
+                                                        PPO = Train_PPO(parameters=parameters_PPO)
+
+                                                        time_taken.append(PPO.train())
 
     if rl_algorithm == "DDPG":
         test_param_reward_object_distance = [0, -5.0]
