@@ -12,6 +12,7 @@ from gym_pybullet_drones.utils.enums import (
 )
 from gymnasium import spaces
 from predictor import KalmanFilter
+from scipy.spatial.transform import Rotation
 
 
 class RLEnv(BaseRLAviary):
@@ -542,7 +543,6 @@ class RLEnv(BaseRLAviary):
                 drone_rpy = self.rotate_euler_angles(drone_rpy)
                 drone_rpy_vel = self.rotate_3D_vector(drone_rpy_vel)
                 goal_pos = self.rotate_3D_vector(goal_pos)
-                obj_pos_return = self.rotate_3D_vector(obj_pos_return)
 
             obs_dict = {
                     "Drone_velocity": drone_vel.flatten(),
@@ -724,7 +724,7 @@ class RLEnv(BaseRLAviary):
         return R @ v
     
     def rotate_3D_vector(self, v):
-        v = np.array(v)
+        v = np.array(v).reshape(3)
 
         cos_t = np.cos(-self.rot_angle)
         sin_t = np.sin(-self.rot_angle)
@@ -745,8 +745,8 @@ class RLEnv(BaseRLAviary):
             [0,     0,      1]
         ])
 
-        R_quaternion = pb.getQuaternionFromMatrix(R.flatten().tolist())
-        angles_quaternion = pb.getQuaternionFromEuler(angles)
-        new_quaternion, _ = pb.multiplyTransforms([0, 0, 0], R_quaternion, [0, 0, 0], angles_quaternion)
+        R_quaternion = Rotation.from_matrix(R).as_quat()
+        angles_quaternion = pb.getQuaternionFromEuler(angles.flatten())
+        _, new_quaternion = pb.multiplyTransforms([0, 0, 0], R_quaternion, [0, 0, 0], angles_quaternion)
         
-        return pb.getEulerFromQuaternion(new_quaternion)
+        return np.array([pb.getEulerFromQuaternion(new_quaternion)])
