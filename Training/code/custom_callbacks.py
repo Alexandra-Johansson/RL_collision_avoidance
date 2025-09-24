@@ -33,14 +33,14 @@ class CustomTensorboardCallback(BaseCallback):
             mean_min_obj_distance = np.mean(min_obj_distances)
             self.logger.record("custom/mean_min_object_distance", mean_min_obj_distance)
 
-        max_target_distances = [
-            info["max_target_distance"]
+        max_goal_distances = [
+            info["max_goal_distance"]
             for info in self.episode_infos
-            if info is not None and "max_target_distance" in info
+            if info is not None and "max_goal_distance" in info
         ]
-        if max_target_distances:
-            mean_max_target_distance = np.mean(max_target_distances)
-            self.logger.record("custom/mean_max_target_distance", mean_max_target_distance)
+        if max_goal_distances:
+            mean_max_goal_distance = np.mean(max_goal_distances)
+            self.logger.record("custom/mean_max_goal_distance", mean_max_goal_distance)
 
         final_drone_altitudes = [
             info["final_drone_altitude"]
@@ -51,14 +51,14 @@ class CustomTensorboardCallback(BaseCallback):
             mean_final_drone_altitude = np.mean(final_drone_altitudes)
             self.logger.record("custom/mean_final_drone_altitude", mean_final_drone_altitude)
 
-        final_target_distances = [
-            info["final_target_distance"]
+        final_goal_distances = [
+            info["final_goal_distance"]
             for info in self.episode_infos
-            if info is not None and "final_target_distance" in info
+            if info is not None and "final_goal_distance" in info
         ]
-        if final_target_distances:
-            mean_final_target_distance = np.mean(final_target_distances)
-            self.logger.record("custom/mean_final_target_distance", mean_final_target_distance)
+        if final_goal_distances:
+            mean_final_goal_distance = np.mean(final_goal_distances)
+            self.logger.record("custom/mean_final_goal_distance", mean_final_goal_distance)
 
         out_of_bounds = [
             info["out_of_bounds"]
@@ -132,14 +132,14 @@ class CustomTensorboardCallback(BaseCallback):
             mean_reward_rpy = np.mean(reward_rpys)
             self.logger.record("custom/mean_reward_rpy", mean_reward_rpy)
         
-        reward_target_distances = [
-            info["reward_target_distance"]
+        reward_goal_distances = [
+            info["reward_goal_distance"]
             for info in self.reward_infos
-            if info is not None and "reward_target_distance" in info
+            if info is not None and "reward_goal_distance" in info
         ]
-        if reward_target_distances:
-            mean_reward_target_distance = np.mean(reward_target_distances)
-            self.logger.record("custom/mean_reward_target_distance", mean_reward_target_distance)
+        if reward_goal_distances:
+            mean_reward_goal_distance = np.mean(reward_goal_distances)
+            self.logger.record("custom/mean_reward_goal_distance", mean_reward_goal_distance)
 
         reward_object_distances = [
             info["reward_object_distance"]

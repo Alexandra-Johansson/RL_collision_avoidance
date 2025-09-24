@@ -15,8 +15,8 @@ if rl_algorithm == "DDPG":
     'pyb_freq': 1*240,
     'action_size': 0.5,
     'velocity_size': 3.0,  # Size of the velocity action
-    'target_pos': np.array([[.0, .0, 1.0]]),
-    'target_radius': 0.2,  # Radius of the target sphere
+    'goal_pos': np.array([[.0, .0, 1.0]]),
+    'goal_radius': 0.2,  # Radius of the goal sphere
     'avoidance_radius': 5.,  # Radius of the avoidance sphere
     'critical_safety_distance': 0.2,
     'episode_length': 8,  # seconds
@@ -33,19 +33,19 @@ if rl_algorithm == "DDPG":
     'kf_process_noise': 1e-2,
     'kf_measurement_noise': 1e-6,
     'reward_collision': -750.0,   # Negative reward for collision
-    'reward_sucess': 1000.0,   # Positive reward for avoiding collision and returning to target
-    'reward_end_outside_target': -500,  # Negative reward for ending outside the target
+    'reward_sucess': 1000.0,   # Positive reward for avoiding collision and returning to goal
+    'reward_end_outside_goal': -500,  # Negative reward for ending outside the goal
     'reward_truncation': -750.0,  # Negative reward for truncation
-    'reward_target_distance': 10,
-    'reward_target_distance_delta': 0.0, # Positive for rewarding moving towards target
+    'reward_goal_distance': 10,
+    'reward_goal_distance_delta': 0.0, # Positive for rewarding moving towards goal
     'reward_rpy': -0.0,  # Negative reward for angular velocity
     'reward_angular_velocity_delta': -0.0, # Negative reward for changing angle
     'reward_object_distance': -0.0,  # Negative reward for being close to the object
     'reward_object_distance_delta': 0.0, # Positive for rewarding moving away from object
     'reward_action_difference': -1,
     'reward_step': -0,
-    'reward_in_target': 1.0,
-    'target_reward': 150000.0,  # Reward to stop training
+    'reward_in_goal': 1.0,
+    'goal_reward': 150000.0,  # Reward to stop training
     'total_timesteps': int(3*1e6),  # Total timesteps to train
     'space_reduction_transformation': True,
     'gui': False,  # Whether to use GUI or not
@@ -71,8 +71,8 @@ if rl_algorithm == "PPO":
     'pyb_freq': 1*240,
     'action_size': 0.5,
     'velocity_size': 3.0,
-    'target_pos': np.array([[.0, .0, 1.0]]),
-    'target_radius': 0.1,  # Radius of the target sphere
+    'goal_pos': np.array([[.0, .0, 1.0]]),
+    'goal_radius': 0.1,  # Radius of the goal sphere
     'avoidance_radius': 5.,  # Radius of the avoidance sphere
     'critical_safety_distance': 0.2,
     'episode_length': 4,  # seconds
@@ -89,19 +89,19 @@ if rl_algorithm == "PPO":
     'kf_process_noise': 1e-2,
     'kf_measurement_noise': 1e-6,
     'reward_collision': -1.0,   # Negative reward for collision
-    'reward_sucess': 1.0,   # Positive reward for avoiding collision and returning to target
-    'reward_end_outside_target': -0.75,  # Negative reward for ending outside the target
+    'reward_sucess': 1.0,   # Positive reward for avoiding collision and returning to goal
+    'reward_end_outside_goal': -0.75,  # Negative reward for ending outside the goal
     'reward_truncation': -1.0,  # Negative reward for truncation
-    'reward_target_distance': 0.003,
-    'reward_target_distance_delta': 0.0, # Positive for rewarding moving towards target
+    'reward_goal_distance': 0.003,
+    'reward_goal_distance_delta': 0.0, # Positive for rewarding moving towards goal
     'reward_rpy': -0.0,  # Negative reward for angular velocity
     'reward_angular_velocity_delta': -0.0, # Negative reward for changing angle
     'reward_object_distance': -0.0,  # Negative reward for being close to the object
     'reward_object_distance_delta': 0.0, # Positive for rewarding moving away from object
     'reward_action_difference': -0.1,
     'reward_step': -0,
-    'reward_in_target': 0.25,
-    'target_reward': 150000.0,  # Reward to stop training
+    'reward_in_goal': 0.25,
+    'goal_reward': 150000.0,  # Reward to stop training
     'total_timesteps': int(2*1e6),  # Total timesteps to train
     'space_reduction_transformation': True,
     'gui': False,  # Whether to use GUI or not
@@ -119,9 +119,9 @@ if __name__ == "__main__":
 
     if rl_algorithm == "PPO":
         test_param_learning_rate = [1e-3]
-        test_param_reward_target_distance = [0.004]
+        test_param_reward_goal_distance = [0.004]
         test_param_reward_object_distance = [-0.2]
-        test_param_reward_in_target = [0]
+        test_param_reward_in_goal = [0]
         test_param_reward_action_difference = [-0.2]
         test_param_clip_range = [0.2]
         test_param_action_size = [0.3]
@@ -134,14 +134,14 @@ if __name__ == "__main__":
         for learning_rate in test_param_learning_rate:
             parameters_PPO['learning_rate'] = learning_rate
 
-            for reward_target_distance in test_param_reward_target_distance:
-                parameters_PPO['reward_target_distance'] = reward_target_distance
+            for reward_goal_distance in test_param_reward_goal_distance:
+                parameters_PPO['reward_goal_distance'] = reward_goal_distance
 
                 for reward_object_distance in test_param_reward_object_distance:
                     parameters_PPO['reward_object_distance'] = reward_object_distance
 
-                    for reward_in_target in test_param_reward_in_target:
-                        parameters_PPO['reward_in_target'] = reward_in_target
+                    for reward_in_goal in test_param_reward_in_goal:
+                        parameters_PPO['reward_in_goal'] = reward_in_goal
 
                         for reward_action_difference in test_param_reward_action_difference:
                             parameters_PPO['reward_action_difference'] = reward_action_difference

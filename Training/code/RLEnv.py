@@ -33,8 +33,8 @@ class RLEnv(BaseRLAviary):
         self.EPISODE_LEN = parameters['episode_length']
         self.ACTION_SIZE = parameters['action_size']
         self.VELOCITY_SIZE = parameters['velocity_size']
-        self.TARGET_POS = parameters['target_pos']
-        self.TARGET_RADIUS = parameters['target_radius']
+        self.GOAL_POS = parameters['goal_pos']
+        self.GOAL_RADIUS = parameters['goal_radius']
         self.AVOIDANCE_RADIUS = parameters['avoidance_radius']
         self.CRITICAL_SAFETY_DISTANCE = parameters['critical_safety_distance']
         self.OBS_NOISE = parameters['obs_noise']
@@ -47,10 +47,10 @@ class RLEnv(BaseRLAviary):
 
         self.REWARD_COLLISION = parameters['reward_collision']
         self.REWARD_SUCESS = parameters['reward_sucess']
-        self.REWARD_END_OUTSIDE_TARGET = parameters['reward_end_outside_target']
+        self.REWARD_END_OUTSIDE_GOAL = parameters['reward_end_outside_goal']
         self.REWARD_TRUNCATION = parameters['reward_truncation']
-        self.REWARD_TARGET_DISTANCE = parameters['reward_target_distance']
-        self.REWARD_TARGET_DISTANCE_DELTA = parameters['reward_target_distance_delta']
+        self.REWARD_GOAL_DISTANCE = parameters['reward_goal_distance']
+        self.REWARD_GOAL_DISTANCE_DELTA = parameters['reward_goal_distance_delta']
         self.REWARD_RPY = parameters['reward_rpy']
         self.REWARD_ANGULAR_VELOCITY_DELTA = parameters['reward_angular_velocity_delta']
         self.REWARD_OBJECT_DISTANCE = parameters['reward_object_distance']
@@ -100,15 +100,13 @@ class RLEnv(BaseRLAviary):
         self.kf_pos_error = np.zeros((self.NUM_OBJECTS, 3))
         self.kf_vel_error = np.zeros((self.NUM_OBJECTS, 3))
 
-        self.REWARD_IN_TARGET_CONSTANT = self.REWARD_TARGET_DISTANCE/(self.TARGET_RADIUS**2) + self.TARGET_RADIUS**2
-        #self.REWARD_IN_TARGET_CONSTANT = self.REWARD_TARGET_DISTANCE/(self.TARGET_RADIUS) + self.TARGET_RADIUS**2
-        #self.REWARD_IN_TARGET_CONSTANT2 = self.REWARD_TARGET_DISTANCE/self.TARGET_RADIUS**2 + self.TARGET_RADIUS/2
+        self.REWARD_IN_GOAL_CONSTANT = self.REWARD_GOAL_DISTANCE/(self.GOAL_RADIUS**2) + self.GOAL_RADIUS**2
         
         drone_state_vec = self._getDroneStateVector(self.DRONE_ID)
 
         self.curr_drone_pos = drone_state_vec[0:3]  # Position
         self.curr_drone_rpy = drone_state_vec[7:10]  # Roll, Pitch, Yaw
-        self.target_distance = np.linalg.norm(self.TARGET_POS[0] - drone_state_vec[0:3])
+        self.goal_distance = np.linalg.norm(self.GOAL_POS[0] - drone_state_vec[0:3])
         self.curr_ang_vel = drone_state_vec[13:16]  # Angular velocity
         self.obj_distances = np.zeros((self.NUM_OBJECTS, 1))
         self.prev_obj_pos = np.zeros((self.NUM_OBJECTS, 2))  # Previous object positions
@@ -120,26 +118,26 @@ class RLEnv(BaseRLAviary):
             self.curr_action = np.zeros((1, 4))
             self.prev_action = np.zeros((1, 4))
 
-        self.visual_target_id = pb.createVisualShape(shapeType = pb.GEOM_SPHERE,
+        self.visual_goal_id = pb.createVisualShape(shapeType = pb.GEOM_SPHERE,
                              rgbaColor=[0.0, 1.0, 0.0, 0.5], 
-                             radius=self.TARGET_RADIUS, 
+                             radius=self.GOAL_RADIUS, 
                              physicsClientId=self.CLIENT)
         
         pb.createMultiBody(baseMass=0,
-                           baseVisualShapeIndex=self.visual_target_id,
-                           basePosition=self.TARGET_POS[0],
+                           baseVisualShapeIndex=self.visual_goal_id,
+                           basePosition=self.GOAL_POS[0],
                            physicsClientId=self.CLIENT)
         
         self.visual_action_ids = []
 
         self.reward_rpy = 0.0
-        self.reward_target_distance = 0.0
+        self.reward_goal_distance = 0.0
         self.reward_object_distance = 0.0
         self.reward_object_distance_delta = 0.0
         self.reward_action_difference = 0.0
 
         self.min_obj_distance = np.inf
-        self.max_target_distance = 0.0
+        self.max_goal_distance = 0.0
         self.max_kf_pos_error = 0.0
         self.average_kf_vel_error = 0.0
         self.average_kf_vel_error_counter = 1
@@ -190,7 +188,7 @@ class RLEnv(BaseRLAviary):
 
         # Compute info for logging
         self.min_obj_distance = min(self.min_obj_distance, np.linalg.norm(obs["Object_position"]))
-        self.max_target_distance = max(self.max_target_distance, np.linalg.norm(obs["Target_position"]))
+        self.max_goal_distance = max(self.max_goal_distance, np.linalg.norm(obs["Goal_position"]))
 
         # If GUI is enabled, sleep to visualize the simulation properly
         if self.GUI:
@@ -216,7 +214,7 @@ class RLEnv(BaseRLAviary):
         drone_state_vec = self._getDroneStateVector(self.DRONE_ID)
         self.curr_drone_pos = drone_state_vec[0:3]  # Position
         self.curr_drone_rpy = drone_state_vec[7:10]  # Roll, Pitch, Yaw
-        self.target_distance = np.linalg.norm(self.TARGET_POS[0] - self.curr_drone_pos)
+        self.goal_distance = np.linalg.norm(self.GOAL_POS[0] - self.curr_drone_pos)
         self.curr_ang_vel = drone_state_vec[13:16] # Angular velocity
         self.obj_distances = np.zeros((self.NUM_OBJECTS, 1))
         self.prev_obj_pos = np.zeros((self.NUM_OBJECTS, 2))  # Previous object positions
@@ -229,7 +227,7 @@ class RLEnv(BaseRLAviary):
         self.time_limit_reached = False
 
         self.min_obj_distance = np.inf
-        self.max_target_distance = 0.0
+        self.max_goal_distance = 0.0
         self.max_kf_pos_error = 0.0
         self.average_kf_vel_error = 0.0
         self.average_kf_vel_error_counter = 1
@@ -238,14 +236,14 @@ class RLEnv(BaseRLAviary):
         self.kf_vel_error = np.zeros((self.NUM_OBJECTS, 3))
         self.visual_action_ids = []
 
-        self.visual_target_id = pb.createVisualShape(shapeType = pb.GEOM_SPHERE,
+        self.visual_goal_id = pb.createVisualShape(shapeType = pb.GEOM_SPHERE,
                              rgbaColor=[0.0, 1.0, 0.0, 0.5], 
-                             radius=self.TARGET_RADIUS, 
+                             radius=self.GOAL_RADIUS, 
                              physicsClientId=self.CLIENT)
 
         pb.createMultiBody(baseMass=0,
-                           baseVisualShapeIndex=self.visual_target_id,
-                           basePosition=self.TARGET_POS[0],
+                           baseVisualShapeIndex=self.visual_goal_id,
+                           basePosition=self.GOAL_POS[0],
                            physicsClientId=self.CLIENT)
 
         self.addBallRandom()
@@ -256,13 +254,13 @@ class RLEnv(BaseRLAviary):
         ret = 0.0
 
         self.reward_rpy = 0.0
-        self.reward_target_distance = 0.0
+        self.reward_goal_distance = 0.0
         self.reward_object_distance = 0.0
         self.reward_object_distance_delta = 0.0 #TODO: Use estimated velocity from kf instead
         self.reward_action_difference = 0.0
 
         prev_ang_vel = np.copy(self.curr_ang_vel)
-        prev_target_distance = np.copy(self.target_distance)
+        prev_goal_distance = np.copy(self.goal_distance)
         prev_obj_distances = np.copy(self.obj_distances)
 
         drone_state_vec = self._getDroneStateVector(self.DRONE_ID)
@@ -271,7 +269,7 @@ class RLEnv(BaseRLAviary):
         self.curr_drone_rpy = drone_state_vec[7:10]
         self.curr_ang_vel = drone_state_vec[13:16]
         
-        self.target_distance = np.linalg.norm(self.TARGET_POS[0] - self.curr_drone_pos)
+        self.goal_distance = np.linalg.norm(self.GOAL_POS[0] - self.curr_drone_pos)
 
         self.obj_distances = np.zeros((len(self.ball_list), 1))
         # Calculate the distance to each object
@@ -286,10 +284,10 @@ class RLEnv(BaseRLAviary):
             # Negative reward for collision
         elif self._computeTruncated():
             if self.time_limit_reached:
-                if (self.target_distance <= self.TARGET_RADIUS):
+                if (self.goal_distance <= self.GOAL_RADIUS):
                     ret = self.REWARD_SUCESS
                 else:
-                    ret = self.REWARD_END_OUTSIDE_TARGET
+                    ret = self.REWARD_END_OUTSIDE_GOAL
             else:
                 # Negative reward for truncation
                 ret = self.REWARD_TRUNCATION
@@ -299,20 +297,13 @@ class RLEnv(BaseRLAviary):
             pass
         else:
             obj_distances_delta = np.sum(prev_obj_distances - self.obj_distances)
-
-            # Reward based on factors
-            #self.reward_rpy += self.REWARD_RPY * (self.curr_drone_rpy[0]**2 + self.curr_drone_rpy[1]**2)
             
-            if (self.target_distance <= self.TARGET_RADIUS):
-                self.reward_target_distance = -self.target_distance**2 + self.REWARD_IN_TARGET_CONSTANT
-                #self.reward_target_distance = -self.target_distance/2 + self.REWARD_IN_TARGET_CONSTANT2
+            if (self.goal_distance <= self.GOAL_RADIUS):
+                self.reward_goal_distance = -self.goal_distance**2 + self.REWARD_IN_GOAL_CONSTANT
             else:
-                self.reward_target_distance = self.REWARD_TARGET_DISTANCE / (self.target_distance**2)
-                #self.reward_target_distance = self.REWARD_TARGET_DISTANCE / (self.target_distance)
-                # TODO, add target_distance_delta
-            #self.reward_target_distance = self.REWARD_TARGET_DISTANCE * self.target_distance**2
+                self.reward_goal_distance = self.REWARD_GOAL_DISTANCE / (self.goal_distance**2)
+                # TODO, add goal_distance_delta
             
-            #self.reward_target_distance = self.REWARD_TARGET_DISTANCE*self.target_distance**2
             # TODO, needs work before multiple objects are supported, change to loop trough all objects
             #if (any(self.obj_distances < self.AVOIDANCE_RADIUS)):
             self.reward_object_distance = self.REWARD_OBJECT_DISTANCE / np.sum(self.obj_distances)**2
@@ -321,7 +312,7 @@ class RLEnv(BaseRLAviary):
                 self.reward_action_difference = self.REWARD_ACTION_DIFFERENCE*np.linalg.norm(self.action_difference)
 
         #ret += self.reward_rpy
-        ret += self.reward_target_distance
+        ret += self.reward_goal_distance
         ret += self.reward_object_distance
         #ret += self.reward_object_distance_delta
         ret += self.reward_action_difference
@@ -395,8 +386,8 @@ class RLEnv(BaseRLAviary):
             obj_vel_low = np.array(-20*np.ones(3))
             obj_vel_high = np.array(20*np.ones(3))
             
-            target_pos_low = np.array(-5*np.ones(3))
-            target_pos_high = np.array(5*np.ones(3))
+            goal_pos_low = np.array(-5*np.ones(3))
+            goal_pos_high = np.array(5*np.ones(3))
 
             timestep_low = np.array([0])
             timestep_high = np.array([self.EPISODE_LEN*self.PYB_FREQ + 1])
@@ -418,9 +409,9 @@ class RLEnv(BaseRLAviary):
             obs_altitude_lower_bound = np.array([altitude_low])
             obs_altitude_upper_bound = np.array([altitude_high])
 
-            # Add target observation space
-            obs_target_pos_lower_bound = np.array([target_pos_low])
-            obs_target_pos_upper_bound = np.array([target_pos_high])
+            # Add goal observation space
+            obs_goal_pos_lower_bound = np.array([goal_pos_low])
+            obs_goal_pos_upper_bound = np.array([goal_pos_high])
 
             # Add timestep observation space
             timestep_lower_bound = np.array([timestep_low])
@@ -441,7 +432,7 @@ class RLEnv(BaseRLAviary):
                     "Drone_rpy": spaces.Box(low=obs_drone_rpy_lower_bound.flatten(), high=obs_drone_rpy_upper_bound.flatten(), dtype=np.float64),
                     "Drone_rpy_velocity": spaces.Box(low=obs_drone_rpy_vel_lower_bound.flatten(), high=obs_drone_rpy_vel_upper_bound.flatten(), dtype=np.float64),
                     "Drone_altitude": spaces.Box(low=obs_altitude_lower_bound.flatten(), high=obs_altitude_upper_bound.flatten(), dtype=np.float64),
-                    "Target_position": spaces.Box(low=obs_target_pos_lower_bound.flatten(), high=obs_target_pos_upper_bound.flatten(), dtype=np.float64),
+                    "Goal_position": spaces.Box(low=obs_goal_pos_lower_bound.flatten(), high=obs_goal_pos_upper_bound.flatten(), dtype=np.float64),
                     "Object_position": spaces.Box(low=obs_obj_lower_bound.flatten(), high=obs_obj_upper_bound.flatten(), dtype=np.float64),
                     "Object_position_t-1": spaces.Box(low=obs_obj_lower_bound.flatten(), high=obs_obj_upper_bound.flatten(), dtype=np.float64)}
 
@@ -532,9 +523,9 @@ class RLEnv(BaseRLAviary):
                 else:
                     obj_pos_return = np.copy(obj_pos)
 
-            # Compute target observation
-            target_pos = np.zeros((1, 3))
-            target_pos[0,:] = self.TARGET_POS - drone_pos[0,:]
+            # Compute goal observation
+            goal_pos = np.zeros((1, 3))
+            goal_pos[0,:] = self.GOAL_POS - drone_pos[0,:]
 
             # Compute timestep observation
             timestep = np.array([self.step_counter])
@@ -550,7 +541,7 @@ class RLEnv(BaseRLAviary):
                 drone_vel = self.rotate_3D_vector(drone_vel)
                 drone_rpy = self.rotate_euler_angles(drone_rpy)
                 drone_rpy_vel = self.rotate_3D_vector(drone_rpy_vel)
-                target_pos = self.rotate_3D_vector(target_pos)
+                goal_pos = self.rotate_3D_vector(goal_pos)
                 obj_pos_return = self.rotate_3D_vector(obj_pos_return)
 
             obs_dict = {
@@ -558,7 +549,7 @@ class RLEnv(BaseRLAviary):
                     "Drone_rpy": drone_rpy.flatten(),
                     "Drone_rpy_velocity": drone_rpy_vel.flatten(),
                     "Drone_altitude": drone_altitude.flatten(),
-                    "Target_position": target_pos.flatten(),
+                    "Goal_position": goal_pos.flatten(),
                     "Object_position": obj_pos_return.flatten(),
                     "Object_position_t-1": self.prev_obj_pos.flatten()
                 }
@@ -583,7 +574,7 @@ class RLEnv(BaseRLAviary):
     def _computeInfo(self):
         success = False
         if getattr(self, "truncation_reason", None) == "time_limit":
-            if (self.target_distance <= self.TARGET_RADIUS):
+            if (self.goal_distance <= self.GOAL_RADIUS):
                 success = True
         '''
         big_yaw_detected = False
@@ -592,9 +583,9 @@ class RLEnv(BaseRLAviary):
         '''
         info = {"is_success": success,
                 "min_object_distance": getattr(self, "min_obj_distance" ,np.nan),
-                "max_target_distance": getattr(self, "max_target_distance", np.nan),
+                "max_goal_distance": getattr(self, "max_goal_distance", np.nan),
                 "final_drone_altitude": self.curr_drone_pos[2],
-                "final_target_distance": self.target_distance,
+                "final_goal_distance": self.goal_distance,
                 "out_of_bounds": self.truncation_reason == "out_of_bounds",
                 "orientation_out_of_bounds": self.truncation_reason == "orientation",
                 "time_limit_reached": self.time_limit_reached,
@@ -603,7 +594,7 @@ class RLEnv(BaseRLAviary):
                 "max_kf_pos_error": getattr(self, "max_kf_pos_error", np.nan),
                 "average_kf_vel_error": getattr(self, "average_kf_vel_error", np.nan),
                 "reward_rpy": self.reward_rpy,
-                "reward_target_distance": self.reward_target_distance,
+                "reward_goal_distance": self.reward_goal_distance,
                 "reward_object_distance": self.reward_object_distance,
                 "reward_object_distance_delta": self.reward_object_distance_delta,
                 "reward_action_difference": self.reward_action_difference,
@@ -670,7 +661,7 @@ class RLEnv(BaseRLAviary):
 
         # Calculate force based on the position
         x0, y0, z0 = pos
-        target = self.TARGET_POS
+        target = self.GOAL_POS
         T = np.random.uniform(0.75,1.5) # Time to reach the target, 0.5s minimum
 
         # Calculate required velocities
