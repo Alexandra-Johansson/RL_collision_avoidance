@@ -95,7 +95,6 @@ class Plot:
 
     def plot_graphs(self):
         log_filename = os.path.join(self.filename, 'tensorboard_logs/' + self.model_type + '_1')
-        save_graph_path = os.path.join(self.filename, 'plots/')
 
         plot_tags = ['eval/mean_reward', 'eval/success_rate', 'rollout/ep_rew_mean', 'rollout/success_rate', 'custom/mean_contact_collision', 
              'custom/mean_object_collision', 'custom/mean_final_drone_altitude', 'custom/mean_final_goal_distance',
@@ -124,7 +123,7 @@ class Plot:
                     plt.ylabel('Rate')
                 else:
                     plt.ylabel('Value')
-                plt.title(f'Scalar Plot: {tag}')
+                plt.title(f'{tag}')
                 plt.grid(True)
-                plt.savefig(save_graph_path + f"{tag.replace('/', '_')}_plot.png")
+                plt.savefig(self.plot_path + f"/{tag.replace('/', '_')}_plot.png")
                 plt.close()
