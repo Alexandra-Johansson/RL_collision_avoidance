@@ -377,12 +377,8 @@ class RLEnv(BaseRLAviary):
         if self.OBS_TYPE == ObservationType.KIN and (self.ACT_TYPE == ActionType.PID or self.ACT_TYPE == ActionType.VEL):
             vel_low = np.array(-5*np.ones(3))
             vel_high = np.array(5*np.ones(3))
-            if self.SRT:
-                rpy_low = np.array(-1*np.ones(6))
-                rpy_high = np.array(1*np.ones(6))
-            else:
-                rpy_low = np.array(-1*np.ones(3))
-                rpy_high = np.array(1*np.ones(3))
+            rpy_low = np.array(-1*np.ones(6))
+            rpy_high = np.array(1*np.ones(6))
             rpy_vel_low = np.array([-10, -10, -6])
             rpy_vel_high = np.array([10, 10, 6])
             altitude_low = np.array([-0.5])
@@ -473,7 +469,7 @@ class RLEnv(BaseRLAviary):
             # Compute drone observations
             drone_pos = np.zeros((1, 3))
             drone_vel = np.zeros((1, 3))
-            drone_rpy = np.zeros((1, 3))
+            drone_rpy = np.zeros((1, 6))
             drone_rpy_vel = np.zeros((1, 3))
             drone_altitude = np.zeros((1, 1))
 
@@ -553,11 +549,11 @@ class RLEnv(BaseRLAviary):
                 drone_rpy = self.rotate_euler_angles(drone_rpy)
                 drone_rpy_vel = self.rotate_3D_vector(drone_rpy_vel)
                 goal_pos = self.rotate_3D_vector(goal_pos)
-            '''
+            
             drone_rpy_sin = np.sin(drone_rpy)
             drone_rpy_cos = np.cos(drone_rpy)
             drone_rpy = np.concatenate([drone_rpy_sin, drone_rpy_cos])
-            '''
+            
             obs_dict = {
                     "Drone_velocity": drone_vel.flatten(),
                     "Drone_rpy": drone_rpy.flatten(),
