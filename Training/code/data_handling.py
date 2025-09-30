@@ -31,7 +31,7 @@ class Txt_file:
                     key = key.strip()
                     value = value.strip()
                     try:
-                        if (key == "initial_xyzs") or (key == "target_pos"):
+                        if (key == "initial_xyzs") or (key == "goal_pos"):
                             value = value.replace('[','').replace(']','')
                             value = np.array([np.fromstring(value,sep=' ')])
                         else:
