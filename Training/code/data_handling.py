@@ -2,8 +2,8 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from gym_pybullet_drones.utils.enums import DroneModel, ActionType
-import torch
 from tensorboard import program
+from tensorboard.backend.event_processing import event_accumulator
 
 class Txt_file:
     def __init__(self,store_path):
@@ -92,3 +92,39 @@ class Plot:
         tb.configure(argv=[None, '--logdir', tensorboard_filename])
         url = tb.launch()
         print(f"TensorBoard started at {url}")
+
+    def plot_graphs(self):
+        log_filename = os.path.join(self.filename, 'tensorboard_logs/' + self.model_type + '_1')
+        save_graph_path = os.path.join(self.filename, 'plots/')
+
+        plot_tags = ['eval/mean_reward', 'eval/success_rate', 'rollout/ep_rew_mean', 'rollout/success_rate', 'custom/mean_contact_collision', 
+             'custom/mean_object_collision', 'custom/mean_final_drone_altitude', 'custom/mean_final_goal_distance',
+             'custom/mean_max_goal_distance', 'custom/mean_min_object_distance', 'custom/mean_reward_action_difference',
+             'custom/mean_reward_object_distance', 'custom/mean_reward_goal_distance']
+        
+        ea = event_accumulator.EventAccumulator(log_filename)
+        ea.Reload()
+
+        scalar_tags = ea.Tags()['scalars']
+
+        for tag in scalar_tags:
+            if tag in plot_tags:
+                events = ea.Scalars(tag)
+                steps = [e.step for e in events]
+                values = [e.value for e in events]
+
+                plt.figure()
+                plt.plot(steps, values, label=tag)
+                plt.xlabel('Step')
+                if 'altitude' in tag or 'distance' in tag:
+                    plt.ylabel('Meters')
+                elif 'reward' in tag or 'rew' in tag:
+                    plt.ylabel('Reward')
+                elif 'collision' in tag or 'rate' in tag:
+                    plt.ylabel('Rate')
+                else:
+                    plt.ylabel('Value')
+                plt.title(f'Scalar Plot: {tag}')
+                plt.grid(True)
+                plt.savefig(save_graph_path + f"{tag.replace('/', '_')}_plot.png")
+                plt.close()
