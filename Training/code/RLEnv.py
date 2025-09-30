@@ -469,7 +469,7 @@ class RLEnv(BaseRLAviary):
             # Compute drone observations
             drone_pos = np.zeros((1, 3))
             drone_vel = np.zeros((1, 3))
-            drone_rpy = np.zeros((1, 6))
+            drone_rpy = np.zeros((1, 3))
             drone_rpy_vel = np.zeros((1, 3))
             drone_altitude = np.zeros((1, 1))
 
