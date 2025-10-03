@@ -1,0 +1,2 @@
+Average mean reward for the last 0.5 million steps: 68.4338386957986
+Average mean std for the last 0.5 million steps: 28.65453605766084
