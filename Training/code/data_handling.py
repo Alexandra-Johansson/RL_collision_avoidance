@@ -127,3 +127,43 @@ class Plot:
                 plt.grid(True)
                 plt.savefig(self.plot_path + f"/{tag.replace('/', '_')}_plot.png")
                 plt.close()
+
+    def plot_mean_and_std(self, file_names, number_of_files_each):
+        for file_name in file_names:
+            for i in range(number_of_files_each):
+                log_filename = os.path.join(self.filename, file_name + f'_{i+1}' + '/tensorboard_logs/' + self.model_type + '_1')
+                
+                plot_tags = ['rollout/ep_rew_mean']
+        
+                ea = event_accumulator.EventAccumulator(log_filename)
+                ea.Reload()
+
+                scalar_tags = ea.Tags()['scalars']
+
+                for tag in scalar_tags:
+                    if tag in plot_tags:
+                        events = ea.Scalars(tag)
+                        try:
+                            total_reward
+                        except NameError:
+                            steps = [e.step for e in events]
+                            total_reward = np.zeros((len(steps),number_of_files_each))
+                        values = [e.value for e in events]
+                        total_reward[:, i] = values
+
+            reward_mean = np.mean(total_reward,1)
+            reward_std = np.std(total_reward,1)
+                        
+            plt.figure()
+            plt.plot(steps, reward_mean, label=tag)
+            plt.fill_between(steps, reward_mean-reward_std, reward_mean+reward_std, alpha = 0.2)
+            plt.xlabel('Step')
+            plt.ylabel('Reward')
+            plt.title(f'Reward over {number_of_files_each} models with ' + file_name)
+            plt.grid(True)
+            plt.savefig(self.plot_path + "/" + file_name + "_plot.png")
+            final_25_percent_mean = [mean for (step, mean) in zip(steps, reward_mean) if step > 1.5*1e6]
+            final_25_percent_std = [std for (step, std) in zip(steps, reward_std) if step > 1.5*1e6]
+            print("Final reward mean: " + f"{np.mean(final_25_percent_mean)}")
+            print("Final reward std: " + f"{np.mean(final_25_percent_std)}")
+            plt.close()
