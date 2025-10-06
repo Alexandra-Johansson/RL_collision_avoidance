@@ -1,0 +1,4 @@
+Best model with transformation = False:
+    Best model index 12 with success rate of 0.9728455378757259
+Best model with transformation = True:
+    Best model index 7 with success rate of 0.9970731735229492
