@@ -195,3 +195,5 @@ class Plot:
             success_rates_mean = np.mean(success_rates,0)
             best_model_index = np.argmax(success_rates_mean)
             print("Best model index " + f"{best_model_index + 1}" + " with success rate of " + f"{success_rates_mean[best_model_index]}")
+            success_rate_limit = 0.5
+            print(f"Nr of models with success rate less than {success_rate_limit}: " + f"{np.sum(success_rates_mean < success_rate_limit)}")
