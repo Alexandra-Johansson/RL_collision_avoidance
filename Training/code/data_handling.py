@@ -190,3 +190,8 @@ class Plot:
             print("Final success mean: " + f"{np.mean(final_25_percent_mean)}")
             print("Final success std: " + f"{np.mean(final_25_percent_std)}")
             plt.close
+
+            success_rates = [success for (step, success) in zip(steps, total_success) if step > 1.75*1e6]
+            success_rates_mean = np.mean(success_rates,0)
+            best_model_index = np.argmax(success_rates_mean)
+            print("Best model index " + f"{best_model_index + 1}" + " with success rate of " + f"{success_rates_mean[best_model_index]}")
