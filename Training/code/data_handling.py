@@ -130,6 +130,7 @@ class Plot:
 
     def plot_mean_and_std(self, file_names, number_of_files_each):
         for file_name in file_names:
+            print(file_name + ":")
             for i in range(number_of_files_each):
                 log_filename = os.path.join(self.filename, file_name + f'_{i+1}' + '/tensorboard_logs/' + self.model_type + '_1')
                 
