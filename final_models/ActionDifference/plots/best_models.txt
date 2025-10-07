@@ -1,0 +1,4 @@
+Best model with action_difference = False:
+    Best model index 4 with success rate of 0.9753658606754085
+Best model with action_difference = True:
+    Best model index 3 with success rate of 0.9803252123235687

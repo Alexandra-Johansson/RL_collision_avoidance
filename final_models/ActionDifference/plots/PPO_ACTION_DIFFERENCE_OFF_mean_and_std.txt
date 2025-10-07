@@ -1,0 +1,7 @@
+Average mean reward for the last 0.5 million steps: 86.83047488465601
+Average std reward for the last 0.5 million steps: 2.238965063063409
+
+Average mean success for the last 0.5 million steps: 0.9471510235144167
+Average std success for the last 0.5 million steps: 0.027789109743674396
+
+Number of models with success rate < 0.5: 0
