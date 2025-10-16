@@ -1,0 +1,51 @@
+PARAMETERS
+
+
+drone_model: DroneModel.CF2X
+action_type: ActionType.PID
+num_objects: 1
+initial_xyzs: [[0. 0. 1.]]
+ctrl_freq: 30
+pyb_freq: 240
+action_size: 0.3
+velocity_size: 4.0
+goal_pos: [[0. 0. 1.]]
+goal_radius: 0.1
+avoidance_radius: 5.0
+critical_safety_distance: 0.2
+episode_length: 4
+eval_freq: 20
+eval_episodes: 5
+learning_rate: 0.001
+batch_size: 1024
+num_steps: 1024
+nr_of_env: 1
+num_epochs: 5
+entropy_coefficient: 0.0
+obs_noise: True
+obs_noise_std: 0.0
+kf_process_noise: 0.01
+kf_measurement_noise: 1e-06
+reward_collision: -1.0
+reward_sucess: 1.0
+reward_end_outside_goal: -0.75
+reward_truncation: -1.0
+reward_goal_distance: 0.01
+reward_goal_distance_delta: 0.0
+reward_rpy: -0.0
+reward_angular_velocity_delta: -0.0
+reward_object_distance: -0.1
+reward_object_distance_delta: 0.0
+reward_action_difference: -0.1
+reward_step: 0
+reward_in_goal: 0.0
+goal_reward: 150000.0
+total_timesteps: 2000000
+space_reduction_transformation: False
+gui: False
+record: False
+obs_timestep: False
+obs_obj_vel: False
+obs_kf: False
+obs_action_difference: True
+clip_range: 0.2
